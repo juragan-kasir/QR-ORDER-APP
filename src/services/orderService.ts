@@ -207,6 +207,13 @@ export interface CreateOrderPayload {
   store: number;
   tableId?: number | null;
   customerName?: string;
+  // DR-16: customerId is deliberately absent. This app has no authentication
+  // and no verified member lookup, and neither free-text names nor
+  // self-supplied ids may unlock member benefits — benefits require a
+  // staff-verified member id. Orders are created anonymous (unpaid); staff
+  // attach a verified member at settlement in FE-POS-App instead. Do not add
+  // a member/customerId input here without an authenticated verification
+  // flow.
   notes?: string;
   paymentMethod?: string;
   session?: string;
