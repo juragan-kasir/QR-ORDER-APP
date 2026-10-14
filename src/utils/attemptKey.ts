@@ -48,11 +48,23 @@ function storage(): Storage | null {
   }
 }
 
+// Monotonic fallback counter for runtimes without WebCrypto (never
+// Math.random — idempotency keys must be unpredictable per session).
+let fallbackCounter = 0;
+
 function mintKey(): string {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return crypto.randomUUID();
+  if (typeof crypto !== "undefined") {
+    if (typeof crypto.randomUUID === "function") {
+      return crypto.randomUUID();
+    }
+    if (typeof crypto.getRandomValues === "function") {
+      const bytes = new Uint8Array(16);
+      crypto.getRandomValues(bytes);
+      return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+    }
   }
-  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  fallbackCounter += 1;
+  return `fallback-${Date.now()}-${fallbackCounter}`;
 }
 
 export function getAttemptKey(signature: string): string {
