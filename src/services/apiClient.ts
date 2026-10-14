@@ -46,9 +46,7 @@ const apiClient = axios.create({
 // customer session). No code in src ever sets auth_token; nothing sends it.
 apiClient.interceptors.request.use(
   (config) => {
-    if (config.headers && "Authorization" in config.headers) {
-      delete config.headers.Authorization;
-    }
+    delete config.headers.Authorization;
     return config;
   },
   (error) => Promise.reject(error),
