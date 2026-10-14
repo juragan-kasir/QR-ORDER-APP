@@ -110,6 +110,12 @@ const CheckoutPage: React.FC = () => {
             placeholder="Nama kamu"
             className="w-full p-3.5 border-2 border-gray-200 dark:border-gray-600 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 transition-colors"
           />
+          {/* DR-16: free text never unlocks member benefits — the name is
+              only a table label for the staff. Staff attach a verified
+              member at settlement instead. */}
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1.5">
+            Nama hanya label pesanan, bukan member.
+          </p>
         </div>
       </div>
 
