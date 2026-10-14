@@ -82,6 +82,7 @@ interface CustomerOrderResponse {
     id: number;
     orderNumber: string;
     status: string;
+    paymentStatus?: string;
     totalPrice: number;
     totalQuantity: number;
     customerName: string | null;
@@ -196,6 +197,7 @@ function mapBackendOrderToFrontend(bo: BackendOrder): Order {
     serviceCharge: bo.serviceChargeAmount,
     total: bo.totalPrice,
     paymentMethod: mapPaymentMethod(bo.paymentMethod),
+    paymentStatus: bo.paymentStatus || "unpaid",
     splitCount: bo.splitCount ?? undefined,
     status: mapStatus(bo.status),
     createdAt: bo.createdAt,
@@ -284,6 +286,7 @@ export async function fetchCustomerOrder(
       total: d.totalPrice,
       paymentMethod: "QRIS",
       status: mapStatus(d.status),
+      paymentStatus: d.paymentStatus || "unpaid",
       createdAt: d.createdAt,
       statusHistory: [{ status: mapStatus(d.status), timestamp: d.createdAt }],
     };

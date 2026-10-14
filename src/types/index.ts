@@ -111,6 +111,9 @@ export interface CartItem {
   quantity: number;
   customization?: CartItemCustomization;
   totalPrice: number;
+  // Known purchasable stock at add time (effective per-store stock). Used to
+  // cap quantity edits (DR-14); absent on legacy persisted lines (no cap).
+  stock?: number;
   // Present when this cart line is a bundle purchase — the real
   // product-bundle id, forwarded to order creation as `bundleId` instead of
   // a per-component `productId`.
@@ -151,6 +154,10 @@ export interface Order {
   paymentMethod: PaymentMethod;
   splitCount?: number;
   status: OrderStatus;
+  // DR-08/DR-23: payment is an independent axis from fulfilment `status`.
+  // Served food can still be unpaid (pay-after-eat); a paid order is settled
+  // at the cashier. Raw backend paymentStatus; "unpaid" when absent.
+  paymentStatus: string;
   createdAt: string;
   statusHistory: { status: OrderStatus; timestamp: string }[];
 }

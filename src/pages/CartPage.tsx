@@ -6,11 +6,13 @@ import CartSummary from "../components/CartSummary";
 import Skeleton from "../components/Skeleton";
 import BundleBadge from "../components/BundleBadge";
 import { useDialogA11y } from "../hooks/useDialogA11y";
+import { useStoreConfig } from "../hooks/useStoreConfig";
 
 const CartPage: React.FC = () => {
   const { items, removeItem, updateQuantity, clearCart } = useCartStore();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { config } = useStoreConfig(searchParams.get("store"));
   const [loading, setLoading] = useState(true);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const closeClearConfirm = () => setShowClearConfirm(false);
@@ -146,7 +148,7 @@ const CartPage: React.FC = () => {
         )}
         {searchParams.get("store") && (
           <span className="bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-full font-medium">
-            Store {searchParams.get("store")}
+            {config.storeName || "Toko"}
           </span>
         )}
       </div>

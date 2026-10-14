@@ -9,6 +9,9 @@ interface UseOrdersResult {
   loading: boolean;
   error: string | null;
   refetch: () => void;
+  // DR-10: when the last successful poll completed — consumers render it so
+  // backed-off or cached data is visibly stale, never silently authoritative.
+  lastFetchedAt: number | null;
 }
 
 const BASE_POLL_INTERVAL = 10000;
@@ -36,6 +39,7 @@ export function useOrders(
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastFetchedAt, setLastFetchedAt] = useState<number | null>(null);
   const [trigger, setTrigger] = useState(0);
   const [, startTransition] = useTransition();
   const prevStatusesRef = useRef<Map<string, string>>(new Map());
@@ -115,6 +119,7 @@ export function useOrders(
         prevStatusesRef.current = newStatuses;
         setOrders(newOrders);
         setTotal(result.total);
+        setLastFetchedAt(Date.now());
         retryCountRef.current = 0;
         if (hasChange) {
           pollIntervalRef.current = BASE_POLL_INTERVAL;
@@ -180,5 +185,5 @@ export function useOrders(
 
   const refetch = useCallback(() => { setTrigger((t) => t + 1); }, []);
 
-  return { orders, total, loading, error, refetch };
+  return { orders, total, loading, error, refetch, lastFetchedAt };
 }

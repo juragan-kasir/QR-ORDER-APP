@@ -48,6 +48,7 @@ function historicalOrder() {
     total: 36000,
     paymentMethod: "QRIS",
     status: "Sudah Diantar",
+    paymentStatus: "paid",
     createdAt: new Date().toISOString(),
     statusHistory: [],
   };
@@ -70,21 +71,21 @@ function renderPage() {
 }
 
 describe("OrderHistoryPage — offline reorder fallback", () => {
-  test("an unverifiable product reorders at its historical price", async () => {
+  test("an unverifiable product is reported, never re-added with guessed price/stock", async () => {
     mockedOrders.mockResolvedValueOnce({
       orders: [historicalOrder()],
       total: 1,
     });
-    // Availability cannot be verified (network failure) — the historical
-    // line is kept with its historical unit price.
+    // DR-11/DR-14: availability and price cannot be verified (network
+    // failure) — the line must not be re-added with a guessed historical
+    // price and unverified stock; it is reported as unverifiable instead.
     mockedProductById.mockRejectedValueOnce(new Error("offline"));
     renderPage();
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: /pesan ulang/i }));
-    const lines = useCartStore.getState().items;
-    expect(lines).toHaveLength(1);
-    expect(lines[0].price).toBe(18000);
-    expect(lines[0].basePrice).toBe(18000);
-    expect(lines[0].quantity).toBe(2);
+    expect(useCartStore.getState().items).toHaveLength(0);
+    expect(
+      await screen.findByText(/tidak dapat diverifikasi/i),
+    ).toBeInTheDocument();
   });
 });

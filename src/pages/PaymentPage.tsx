@@ -22,7 +22,7 @@ import {
 import PriceChangeDialog from "../components/PriceChangeDialog";
 import { ApiError } from "../services/apiClient";
 import { bareTableDesignator } from "../utils/tableDisplay";
-import { createIdempotencyKey } from "../utils/idempotencyKey";
+import { cartSignature, getAttemptKey, clearAttemptKey } from "../utils/attemptKey";
 
 const PaymentPage: React.FC = () => {
   const navigate = useNavigate();
@@ -62,12 +62,23 @@ const PaymentPage: React.FC = () => {
     changes: MatchedChange[];
   } | null>(null);
   const [confirming, setConfirming] = useState(false);
-  // The page is the checkout attempt: a fresh mount is a fresh attempt, and a
-  // retry after failure reuses this same component instance. So one ref per
-  // mount gives P5-02's contract exactly — same key across retries of the
-  // same attempt (backend dedupes on (store, idempotencyKey)), fresh key for a
-  // genuinely new attempt. Mirrors FE-POS-App CheckoutModal's proven pattern.
-  const idempotencyKeyRef = useRef<string>(createIdempotencyKey());
+  // DR-23 K: idempotency key bound to the exact submitted lines and
+  // persisted in sessionStorage — a reload/timeout-after-success followed
+  // by retry reuses the same key (backend dedupes) instead of minting a
+  // second order. Computed from the live cart: the confirm-price-change
+  // path's snapshot check guarantees the cart still matches, hence the
+  // same key (the 409 wrote nothing, so it cannot replay a stale order).
+  // Unit prices are excluded from the signature on purpose (see attemptKey).
+  const attemptSignature = () =>
+    cartSignature(
+      items.map((i) => ({
+        id: String(i.id),
+        quantity: i.quantity,
+        customizationKey: JSON.stringify(i.customization ?? null),
+      })),
+      searchParams.get("store"),
+      searchParams.get("table"),
+    );
   // Synchronous re-entry guard on order submission: prevents a fast
   // double-tap (before React re-renders with `processing` true and the
   // button disabled) from issuing two orders. Reset on failure so the
@@ -95,8 +106,14 @@ const PaymentPage: React.FC = () => {
         <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
           Pesanan Berhasil!
         </h2>
+        {/* DR-04: the order is placed but unpaid — settlement happens at the
+            cashier. State this explicitly so the diner never believes the
+            order tap collected payment. */}
         <p className="text-gray-500 dark:text-gray-400">
           Pesananmu sedang diproses. Tunggu ya!
+        </p>
+        <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
+          Pesanan ini belum dibayar — tunjukkan nomor pesanan dan bayar di kasir.
         </p>
 
         {confirmedOrder && (
@@ -194,6 +211,7 @@ const PaymentPage: React.FC = () => {
   ): Promise<boolean> => {
     const urlTable = searchParams.get("table");
     const urlStore = searchParams.get("store");
+    const signature = attemptSignature();
     try {
       const order = await createOrder({
         store: Number(urlStore),
@@ -201,10 +219,11 @@ const PaymentPage: React.FC = () => {
         customerName: customerName || undefined,
         paymentMethod: selectedMethod,
         session: searchParams.get("session") || undefined,
-        idempotencyKey: idempotencyKeyRef.current,
+        idempotencyKey: getAttemptKey(signature),
         splitCount: selectedMethod === "Split Bill" ? splitCount : undefined,
         items: payloadItems,
       });
+      clearAttemptKey(signature);
       clearCart();
       clearCheckoutData();
       setPriceConflict(null);
@@ -224,6 +243,18 @@ const PaymentPage: React.FC = () => {
           setPriceConflict({ snapshot, submitted, changes });
           return false;
         }
+      }
+      // DR-09: a table-occupied refusal must explain the one-open-order
+      // rule, never surface an opaque backend error.
+      if (
+        err instanceof ApiError &&
+        err.status === 400 &&
+        err.message.toLowerCase().includes("occupied")
+      ) {
+        setPaymentError(
+          "Meja ini masih memiliki pesanan aktif. Selesaikan atau bayar pesanan yang berjalan dulu, atau panggil pelayan untuk bantuan.",
+        );
+        return false;
       }
       setPaymentError(
         err instanceof Error ? err.message : "Gagal membuat pesanan. Coba lagi.",
@@ -509,11 +540,14 @@ const PaymentPage: React.FC = () => {
               Memproses...
             </span>
           ) : taxReady ? (
-            `Bayar Sekarang — Rp${total.toLocaleString()}`
+            // DR-04: this CTA places an unpaid order — settlement (and any
+            // payment) happens at the cashier. The label must never imply
+            // the diner has paid.
+            `Buat Pesanan — Rp${total.toLocaleString()}`
           ) : configLoading ? (
             "Memuat…"
           ) : (
-            "Bayar Sekarang"
+            "Buat Pesanan"
           )}
         </button>
       </div>

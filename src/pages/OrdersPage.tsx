@@ -49,13 +49,34 @@ const ACTIVE_STATUSES = new Set([
   "Siap Diantar",
 ]);
 
+// DR-08: payment is independent of fulfilment — a served-but-unpaid order
+// (pay-after-eat) stays visible with its payment badge instead of vanishing
+// into history looking completed.
+function isOrderActive(o: { status: string; paymentStatus?: string }): boolean {
+  if (ACTIVE_STATUSES.has(o.status)) return true;
+  return o.paymentStatus != null && o.paymentStatus !== "paid" && o.paymentStatus !== "refunded";
+}
+
+function paymentBadgeClass(paymentStatus?: string): string {
+  if (paymentStatus === "paid")
+    return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300";
+  return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300";
+}
+
+function paymentBadgeLabel(paymentStatus?: string): string {
+  if (paymentStatus === "paid") return "Lunas";
+  if (paymentStatus === "partial") return "Dibayar sebagian";
+  if (paymentStatus === "refunded") return "Dana dikembalikan";
+  return "Belum dibayar • Bayar di kasir";
+}
+
 const OrdersPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const store = searchParams.get("store");
   const table = searchParams.get("table");
   const session = searchParams.get("session") || undefined;
-  const { orders, loading, error, refetch } = useOrders(store, table ? { tableId: table, session } : undefined);
+  const { orders, loading, error, refetch, lastFetchedAt } = useOrders(store, table ? { tableId: table, session } : undefined);
 
   const href = (path: string) => {
     const sep = path.includes("?") ? "&" : "?";
@@ -63,7 +84,7 @@ const OrdersPage: React.FC = () => {
   };
 
   const activeOrders = table
-    ? orders.filter((o) => ACTIVE_STATUSES.has(o.status))
+    ? orders.filter((o) => isOrderActive(o))
     : orders;
 
   // A real order for this table already carries the backend's actual
@@ -173,6 +194,18 @@ const OrdersPage: React.FC = () => {
           <RefreshCw size={18} />
         </button>
       </div>
+      {/* DR-10: polling backs off up to 60s and pauses while hidden — show
+          when the list was last refreshed so stale data is visibly stale. */}
+      {lastFetchedAt != null && (
+        <p className="text-xs text-gray-400 dark:text-gray-500 -mt-3">
+          Diperbarui{" "}
+          {new Date(lastFetchedAt).toLocaleTimeString("id-ID", {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+          })}
+        </p>
+      )}
 
       <div className="space-y-4">
         {activeOrders.map((order) => (
@@ -190,6 +223,13 @@ const OrdersPage: React.FC = () => {
                   Meja {bareTableDesignator(order.tableNumber) ?? order.tableNumber}
                   {order.customerName && ` • ${order.customerName}`}
                 </p>
+                {/* DR-08: payment state is independent of fulfilment — an
+                    unpaid order must never look fully completed. */}
+                <span
+                  className={`inline-block mt-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold ${paymentBadgeClass(order.paymentStatus)}`}
+                >
+                  {paymentBadgeLabel(order.paymentStatus)}
+                </span>
               </div>
               <span
                 className={`px-3 py-1.5 rounded-full text-xs font-bold ${statusBadgeClass(order.status)}`}

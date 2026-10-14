@@ -39,11 +39,15 @@ const apiClient = axios.create({
   },
 });
 
+// DR-12: this is a public, unauthenticated customer app — requests must
+// never carry an Authorization header. A stale staff token lingering in
+// localStorage would otherwise be attached to anonymous QR calls
+// (cross-role leakage with zero benefit, since no endpoint here accepts a
+// customer session). No code in src ever sets auth_token; nothing sends it.
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("auth_token");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    if (config.headers && "Authorization" in config.headers) {
+      delete config.headers.Authorization;
     }
     return config;
   },

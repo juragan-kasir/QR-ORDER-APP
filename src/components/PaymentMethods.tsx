@@ -11,10 +11,14 @@ interface PaymentMethodsProps {
   total: number | null;
 }
 
+// DR-04: these are settlement intents recorded on the unpaid order, not
+// collected payment — the actual tender + drawer attribution happen at the
+// cashier. Descriptions must read as intent ("di kasir"), never as an
+// in-app charge.
 const paymentOptions: { id: PaymentMethod; label: string; icon: string; description: string }[] = [
-  { id: 'QRIS', label: 'QRIS', icon: '📱', description: 'Scan QR untuk bayar' },
-  { id: 'E-Wallet', label: 'E-Wallet', icon: '👛', description: 'GoPay, OVO, Dana, dll.' },
-  { id: 'Kartu Kredit', label: 'Kartu Kredit', icon: '💳', description: 'Visa, Mastercard, dll.' },
+  { id: 'QRIS', label: 'QRIS', icon: '📱', description: 'Bayar via QRIS di kasir' },
+  { id: 'E-Wallet', label: 'E-Wallet', icon: '👛', description: 'GoPay, OVO, Dana, dll. di kasir' },
+  { id: 'Kartu Kredit', label: 'Kartu Kredit', icon: '💳', description: 'Visa, Mastercard, dll. di kasir' },
   { id: 'Tunai', label: 'Tunai', icon: '💵', description: 'Bayar tunai di kasir' },
   { id: 'Postpaid', label: 'Postpaid', icon: '🧾', description: 'Bayar setelah makan' },
   { id: 'Split Bill', label: 'Split Bill', icon: '✂️', description: 'Bagi tagihan' },
@@ -75,8 +79,9 @@ const PaymentMethods: React.FC<PaymentMethodsProps> = ({
             <span className="font-bold text-primary">
               {/* DR-17 (F1): never derive a per-person amount from an
                   unverified total — withhold it until the tax quote is
-                  valid, exactly like the main checkout total. */}
-              {total === null ? "…" : `Rp${(total / splitCount).toLocaleString()}`}
+                  valid, exactly like the main checkout total. Whole rupiah
+                  only — never render fractional sen. */}
+              {total === null ? "…" : `Rp${Math.round(total / splitCount).toLocaleString()}`}
             </span>
           </div>
         </div>

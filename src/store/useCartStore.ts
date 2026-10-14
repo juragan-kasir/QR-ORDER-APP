@@ -102,6 +102,7 @@ export const useCartStore = create<CartState>()(
                 totalPrice: unitPrice,
                 bundleId: product.bundleId,
                 bundleItems: product.bundleItems,
+                stock: product.stock,
               },
             ],
           });
@@ -117,11 +118,18 @@ export const useCartStore = create<CartState>()(
           return;
         }
         set({
-          items: get().items.map((item) =>
-            item.id === productId
-              ? { ...item, quantity, totalPrice: item.price * quantity }
-              : item,
-          ),
+          items: get().items.map((item) => {
+            if (item.id !== productId) return item;
+            // DR-14: never exceed the known purchasable stock. Lines
+            // without a recorded stock (legacy persisted carts) keep the
+            // previous unbounded behavior; the server re-validates anyway.
+            const capped =
+              item.stock != null && item.stock >= 0
+                ? Math.min(quantity, item.stock)
+                : quantity;
+            if (capped <= 0) return item;
+            return { ...item, quantity: capped, totalPrice: item.price * capped };
+          }),
         });
       },
       updateCustomization: (productId, customization) => {

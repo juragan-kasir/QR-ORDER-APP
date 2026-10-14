@@ -130,36 +130,18 @@ const OrderHistoryPage: React.FC = () => {
           unavailableItems.push(item.name);
         }
       } catch {
-        // Availability couldn't be verified (network error) — keep the
-        // historical item rather than stranding the whole reorder, same as
-        // previous behavior.
-        entries.push({
-          product: {
-            id: item.productId || `reorder-${order.id}-${item.name}`,
-            name: item.name,
-            description: "",
-            price: item.price,
-            image: item.image || "",
-            images: item.image ? [item.image] : [],
-            category: "Makanan" as const,
-            rating: 0,
-            reviewsCount: 0,
-            isBestSeller: false,
-            isPromo: false,
-            isVegetarian: false,
-            estimatedTime: 15,
-            stock: 99,
-            storeId: order.storeId || "",
-            ingredients: [],
-          },
-          customization: item.customization,
-          quantity: item.quantity,
-        });
+        // DR-11/DR-14: availability and price cannot be verified (network
+        // error) — the item is reported as unverifiable rather than
+        // re-added with a guessed price/stock, which would commit a total
+        // the server never quoted and stock it never confirmed.
+        unavailableItems.push(`${item.name} (tidak dapat diverifikasi)`);
       }
     }
 
     if (entries.length === 0) {
-      setReorderError("Semua item dalam pesanan ini tidak tersedia lagi.");
+      setReorderError(
+        `Semua item dalam pesanan ini tidak tersedia lagi.${unavailableItems.length > 0 ? ` ${unavailableItems.join(", ")}.` : ""}`,
+      );
       setReorderLoading(false);
       return;
     }

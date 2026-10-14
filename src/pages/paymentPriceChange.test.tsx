@@ -68,7 +68,7 @@ function renderPage() {
 async function submitOrder() {
   const user = userEvent.setup();
   await user.click(
-    await screen.findByRole("button", { name: /bayar sekarang/i }),
+    await screen.findByRole("button", { name: /bayar sekarang|buat pesanan/i }),
   );
   return user;
 }
@@ -247,7 +247,7 @@ describe("PaymentPage — 409 PRICE_CHANGED (DR-11)", () => {
     );
     const user = userEvent.setup();
     const button = await screen.findByRole("button", {
-      name: /bayar sekarang/i,
+      name: /bayar sekarang|buat pesanan/i,
     });
     // Dispatched without awaiting between them, narrowing the window in
     // which React could re-render and disable the button. The synchronous
@@ -296,11 +296,11 @@ describe("PaymentPage — 409 PRICE_CHANGED (DR-11)", () => {
     });
     const user = userEvent.setup();
     await user.click(
-      await screen.findByRole("button", { name: /bayar sekarang/i }),
+      await screen.findByRole("button", { name: /bayar sekarang|buat pesanan/i }),
     );
     await screen.findByText("Gagal.");
     await user.click(
-      await screen.findByRole("button", { name: /bayar sekarang/i }),
+      await screen.findByRole("button", { name: /bayar sekarang|buat pesanan/i }),
     );
     await screen.findByText(/pesanan berhasil/i);
     const firstKey = mockedCreate.mock.calls[0][0].idempotencyKey;
@@ -329,7 +329,7 @@ describe("PaymentPage — 409 PRICE_CHANGED (DR-11)", () => {
     });
     renderPage();
     await user.click(
-      await screen.findByRole("button", { name: /bayar sekarang/i }),
+      await screen.findByRole("button", { name: /bayar sekarang|buat pesanan/i }),
     );
     await screen.findByText(/pesanan berhasil/i);
     expect(mockedCreate.mock.calls[2][0].idempotencyKey).not.toBe(firstKey);
