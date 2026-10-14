@@ -2,10 +2,19 @@ import axios from "axios";
 
 export class ApiError extends Error {
   status: number;
-  constructor(message: string, status: number) {
+  // DR-11: backend machine code (e.g. 'PRICE_CHANGED'). Undefined for
+  // legacy/network errors — never guessed, only carried from the response.
+  code?: string;
+  // DR-11: raw backend response body (e.g. the PRICE_CHANGED `items`
+  // array). Customer-facing UI must pick explicit fields from it, never
+  // render it wholesale.
+  data?: unknown;
+  constructor(message: string, status: number, details?: { code?: string; data?: unknown }) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.code = details?.code;
+    this.data = details?.data;
   }
 }
 
@@ -41,38 +50,44 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
+// Maps an axios-style failure to an ApiError. Extracted (pure) so the
+// mapping is unit-testable; the interceptor below delegates to it and its
+// observable behavior is unchanged.
+export function toApiError(error: {
+  response?: { status?: number; data?: { message?: string; code?: string } & Record<string, unknown> };
+  code?: string;
+  message?: string;
+}): ApiError {
+  if (error.response) {
+    const status: number = error.response.status ?? 0;
+    const message =
+      error.response.data?.message ||
+      (status === 401
+        ? "Sesi telah berakhir. Silakan muat ulang halaman."
+        : status === 403
+          ? "Kamu tidak memiliki akses untuk melakukan ini."
+          : status === 404
+            ? "Data tidak ditemukan."
+            : status === 429
+              ? "Terlalu banyak permintaan. Tunggu sebentar lalu coba lagi."
+              : status >= 500
+                ? "Terjadi kesalahan pada server. Coba lagi nanti."
+                : "Terjadi kesalahan");
+    const code =
+      typeof error.response.data?.code === "string"
+        ? error.response.data.code
+        : undefined;
+    return new ApiError(message, status, { code, data: error.response.data });
+  }
+  if (error.code === "ECONNABORTED") {
+    return new ApiError("Koneksi timeout. Periksa jaringan dan coba lagi.", 0);
+  }
+  return new ApiError(error.message || "Tidak dapat terhubung ke server.", 0);
+}
+
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response) {
-      const status: number = error.response.status;
-      const message =
-        error.response.data?.message ||
-        (status === 401
-          ? "Sesi telah berakhir. Silakan muat ulang halaman."
-          : status === 403
-            ? "Kamu tidak memiliki akses untuk melakukan ini."
-            : status === 404
-              ? "Data tidak ditemukan."
-              : status === 429
-                ? "Terlalu banyak permintaan. Tunggu sebentar lalu coba lagi."
-                : status >= 500
-                  ? "Terjadi kesalahan pada server. Coba lagi nanti."
-                  : "Terjadi kesalahan");
-      return Promise.reject(new ApiError(message, status));
-    }
-    if (error.code === "ECONNABORTED") {
-      return Promise.reject(
-        new ApiError("Koneksi timeout. Periksa jaringan dan coba lagi.", 0),
-      );
-    }
-    return Promise.reject(
-      new ApiError(
-        error.message || "Tidak dapat terhubung ke server.",
-        0,
-      ),
-    );
-  },
+  (error) => Promise.reject(toApiError(error)),
 );
 
 export default apiClient;

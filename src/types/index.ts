@@ -56,6 +56,9 @@ export interface Product {
   name: string;
   description: string;
   price: number;
+  // DR-11: backend-resolved outlet price (customer-menu `effectivePrice`).
+  // Null when no store is pinned or on older backends; 0 is a valid price.
+  effectivePrice?: number | null;
   image: string;
   images: string[];
   category: Category;

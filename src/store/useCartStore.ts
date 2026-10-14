@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { CartItem, Product, CartItemCustomization } from "../types";
+import { resolveDisplayPrice } from "../utils/resolveDisplayPrice";
 
 interface CartState {
   storeId: string | null;
@@ -12,6 +13,15 @@ interface CartState {
     productId: string,
     customization: CartItemCustomization,
   ) => void;
+  // DR-11: applies customer-confirmed server prices after PRICE_CHANGED.
+  // Updates are positional: `index` is the submit-time cart position of the
+  // affected line (the backend mismatch `index` counts submitted lines in
+  // order, and the caller's snapshot check guarantees the live cart still
+  // has that exact order). Positional — never product-ID — addressing keeps
+  // same-product sibling lines with different customizations precise.
+  // Only quantity and customization are untouched; out-of-range entries are
+  // ignored.
+  applyServerPrices: (updates: { index: number; price: number }[]) => void;
   clearCart: () => void;
   setStoreId: (storeId: string | null) => void;
   totalItems: () => number;
@@ -24,15 +34,19 @@ interface CartState {
 const TAX_RATE = 0;
 const SERVICE_CHARGE_RATE = 0;
 
-function calcUnitPrice(
-  basePrice: number,
-  customization?: CartItemCustomization,
-): number {
+function calcMarkupTotal(customization?: CartItemCustomization): number {
   const addOnTotal =
     customization?.addOns?.reduce((sum, a) => sum + a.price, 0) || 0;
   const optionGroupsTotal =
     customization?.selectedOptions?.reduce((sum, o) => sum + o.price, 0) || 0;
-  return basePrice + addOnTotal + optionGroupsTotal;
+  return addOnTotal + optionGroupsTotal;
+}
+
+function calcUnitPrice(
+  basePrice: number,
+  customization?: CartItemCustomization,
+): number {
+  return basePrice + calcMarkupTotal(customization);
 }
 
 export const useCartStore = create<CartState>()(
@@ -52,12 +66,11 @@ export const useCartStore = create<CartState>()(
               JSON.stringify(customization),
         );
 
-        const addOnTotal =
-          customization?.addOns?.reduce((sum, a) => sum + a.price, 0) || 0;
-        const optionGroupsTotal =
-          customization?.selectedOptions?.reduce((sum, o) => sum + o.price, 0) || 0;
-        const basePrice = product.price;
-        const unitPrice = basePrice + addOnTotal + optionGroupsTotal;
+        // DR-11: persist the outlet-resolved base so cart, payment
+        // review, and expectedPrice all derive from the same price of
+        // record. Bundle lines carry bundlePrice as product.price already.
+        const basePrice = resolveDisplayPrice(product);
+        const unitPrice = calcUnitPrice(basePrice, customization);
 
         if (existingItem) {
           const newQty = existingItem.quantity + 1;
@@ -132,6 +145,22 @@ export const useCartStore = create<CartState>()(
         });
       },
       clearCart: () => set({ items: [] }),
+      applyServerPrices: (updates) => {
+        const byIndex = new Map(updates.map((u) => [u.index, u.price]));
+        set({
+          items: get().items.map((item, index) => {
+            const price = byIndex.get(index);
+            if (price === undefined) return item;
+            // DR-11 price-basis invariant: the confirmed value is a FINAL
+            // unit price for the line's current customization (guaranteed by
+            // the caller's snapshot check), so the persisted base becomes
+            // confirmed − current markups. Later customization edits then
+            // recalculate from the confirmed basis instead of a stale base.
+            const basePrice = price - calcMarkupTotal(item.customization);
+            return { ...item, basePrice, price, totalPrice: price * item.quantity };
+          }),
+        });
+      },
       setStoreId: (newStoreId) => {
         const current = get().storeId;
         if (newStoreId && current && newStoreId !== current) {

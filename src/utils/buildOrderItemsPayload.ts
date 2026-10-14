@@ -5,6 +5,10 @@ export interface OrderItemPayload {
   productName: string;
   quantity: number;
   price: number;
+  // DR-11: client echo of the final charged unit price for this line
+  // (outlet-resolved base + price-bearing customizations, or bundlePrice
+  // for bundles). Comparison-only server-side; omission skips enforcement.
+  expectedPrice: number;
   notes?: string;
   options?: unknown[];
   modifiers?: unknown[];
@@ -26,6 +30,9 @@ export function buildOrderItemsPayload(cartItems: CartItem[]): OrderItemPayload[
           productName: item.name,
           quantity: item.quantity,
           price: item.price,
+          // DR-11: bundle lines compare against bundlePrice, which the
+          // cart stores as the line's unit price.
+          expectedPrice: item.price,
           notes: item.customization?.notes,
         }
       : {
@@ -33,6 +40,10 @@ export function buildOrderItemsPayload(cartItems: CartItem[]): OrderItemPayload[
           productName: item.name,
           quantity: item.quantity,
           price: item.price,
+          // DR-11: the cart unit price already is catalogBase + markup
+          // (see useCartStore), i.e. exactly the backend's unit-price
+          // semantics before quantity/discount/tax/service.
+          expectedPrice: item.price,
           notes: item.customization?.notes,
           options: buildOptionsPayload(item),
           modifiers: item.customization?.addOns?.map((a) => ({

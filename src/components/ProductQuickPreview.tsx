@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Clock, Star, Plus, ChevronRight } from "lucide-react";
 import type { Product } from "../types";
 import { hasCustomizationOptions } from "../utils/productCustomization";
+import { resolveDisplayPrice } from "../utils/resolveDisplayPrice";
 import { useDialogA11y } from "../hooks/useDialogA11y";
 import { transformCloudinaryImage, PRODUCT_IMAGE_WIDTH_SMALL } from "../utils/cloudinaryImage";
 
@@ -265,7 +266,7 @@ const ProductQuickPreview: React.FC<ProductQuickPreviewProps> = ({
                     {needsCustomization ? "Mulai dari" : "Harga"}
                   </p>
                   <span className="font-bold text-2xl text-primary">
-                    Rp{product.price.toLocaleString()}
+                    Rp{resolveDisplayPrice(product).toLocaleString()}
                   </span>
                 </div>
                 {!outOfStock ? (

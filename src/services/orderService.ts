@@ -229,6 +229,9 @@ export interface CreateOrderPayload {
     productName: string;
     quantity: number;
     price: number;
+    // DR-11: optional echo of the final charged unit price; the backend
+    // compares it and answers 409 PRICE_CHANGED on mismatch.
+    expectedPrice?: number;
     notes?: string;
     options?: unknown[];
     modifiers?: unknown[];

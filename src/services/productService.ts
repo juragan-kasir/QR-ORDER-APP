@@ -20,6 +20,10 @@ interface BackendProduct {
   category: number;
   description: string | null;
   price: number;
+  // DR-11: outlet-resolved catalog price (getEffectivePriceMap semantics —
+  // outlet row wins, otherwise base price). Null when no valid store is
+  // pinned. Absent on older backends.
+  effectivePrice?: number | null;
   costPrice: number;
   isOption: boolean;
   options: unknown[];
@@ -230,6 +234,9 @@ export function mapBackendProductToFrontend(
     name: bp.nameProduct,
     description: bp.description || "",
     price: bp.price,
+    // DR-11: carried verbatim (null when unpinned/absent) — display
+    // resolution happens in resolveDisplayPrice, never here.
+    effectivePrice: bp.effectivePrice ?? null,
     images:
       bp.images?.length
         ? bp.images

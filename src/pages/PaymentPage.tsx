@@ -10,6 +10,17 @@ import PaymentMethods from "../components/PaymentMethods";
 import { ChevronLeft, PartyPopper } from "lucide-react";
 import Skeleton from "../components/Skeleton";
 import { buildOrderItemsPayload } from "../utils/buildOrderItemsPayload";
+import type { OrderItemPayload } from "../utils/buildOrderItemsPayload";
+import {
+  isSnapshotCurrent,
+  matchChangedLines,
+  parsePriceChangedData,
+  snapshotCartLines,
+  type MatchedChange,
+  type SubmittedLine,
+} from "../utils/priceChange";
+import PriceChangeDialog from "../components/PriceChangeDialog";
+import { ApiError } from "../services/apiClient";
 import { bareTableDesignator } from "../utils/tableDisplay";
 import { createIdempotencyKey } from "../utils/idempotencyKey";
 
@@ -17,10 +28,16 @@ const PaymentPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { items, clearCart, subtotal } = useCartStore();
+  const { applyServerPrices } = useCartStore();
   const createOrder = useOrderStore((state) => state.createOrder);
   const { data: checkoutData, clearCheckoutData } = useCheckoutStore();
   const store = searchParams.get("store");
-  const { config } = useStoreConfig(store);
+  const {
+    config,
+    loading: configLoading,
+    error: configError,
+    refetch: refetchConfig,
+  } = useStoreConfig(store);
   const { promos } = usePromos(store);
 
   const href = (path: string) => {
@@ -35,6 +52,16 @@ const PaymentPage: React.FC = () => {
   const [confirmedOrder, setConfirmedOrder] = useState<Order | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  // DR-11: pending price-change confirmation. Holds the submit-time cart
+  // snapshot plus the matched backend mismatches. Never triggers a submit
+  // on its own — only an explicit confirm does, and only while the live
+  // cart still matches the snapshot.
+  const [priceConflict, setPriceConflict] = useState<{
+    snapshot: string;
+    submitted: SubmittedLine[];
+    changes: MatchedChange[];
+  } | null>(null);
+  const [confirming, setConfirming] = useState(false);
   // The page is the checkout attempt: a fresh mount is a fresh attempt, and a
   // retry after failure reuses this same component instance. So one ref per
   // mount gives P5-02's contract exactly — same key across retries of the
@@ -147,11 +174,69 @@ const PaymentPage: React.FC = () => {
   // actually charged, even if the cart changed after Checkout (e.g. back
   // button + quantity edit).
   const subtotalValue = subtotal();
+  // DR-17: meaningful only while the backend tax quote is valid
+  // (status "ok"). Any other status renders placeholders/an error state
+  // and blocks submission below — never a zero-tax total.
+  const taxReady = config.status === "ok";
   const tax = Math.round(subtotalValue * config.taxRate);
-  const serviceCharge = Math.round(subtotalValue * config.serviceChargeRate);
+  const serviceCharge = Math.round(
+    subtotalValue * (config.serviceChargeRate ?? 0),
+  );
   const total = subtotalValue + tax + serviceCharge;
 
+  // DR-11: one guarded submission. Captures the cart snapshot the 409
+  // indexes refer to; a PRICE_CHANGED mismatch opens the confirmation
+  // dialog instead of retrying. Returns true on success.
+  const submitOrder = async (
+    payloadItems: OrderItemPayload[],
+    snapshot: string,
+    submitted: SubmittedLine[],
+  ): Promise<boolean> => {
+    const urlTable = searchParams.get("table");
+    const urlStore = searchParams.get("store");
+    try {
+      const order = await createOrder({
+        store: Number(urlStore),
+        tableId: urlTable ? Number(urlTable) : undefined,
+        customerName: customerName || undefined,
+        paymentMethod: selectedMethod,
+        session: searchParams.get("session") || undefined,
+        idempotencyKey: idempotencyKeyRef.current,
+        splitCount: selectedMethod === "Split Bill" ? splitCount : undefined,
+        items: payloadItems,
+      });
+      clearCart();
+      clearCheckoutData();
+      setPriceConflict(null);
+      setConfirmedOrder(order);
+      setSuccess(true);
+      return true;
+    } catch (err) {
+      // DR-11: a price mismatch must never auto-retry. Park the
+      // snapshot-bound mismatches for explicit customer confirmation.
+      if (err instanceof ApiError && err.status === 409 && err.code === "PRICE_CHANGED") {
+        const mismatches = parsePriceChangedData(err.data);
+        const changes =
+          mismatches === null
+            ? []
+            : matchChangedLines(submitted, mismatches);
+        if (changes.length > 0) {
+          setPriceConflict({ snapshot, submitted, changes });
+          return false;
+        }
+      }
+      setPaymentError(
+        err instanceof Error ? err.message : "Gagal membuat pesanan. Coba lagi.",
+      );
+      return false;
+    }
+  };
+
   const handlePayment = async () => {
+    // DR-17: without a valid backend tax quote the displayed total cannot
+    // match what the backend would charge — refuse to submit. The cart and
+    // checkout data are untouched, so nothing is lost.
+    if (!taxReady) return;
     if (submitAttemptedRef.current) return;
     submitAttemptedRef.current = true;
     setProcessing(true);
@@ -161,37 +246,75 @@ const PaymentPage: React.FC = () => {
       // not from checkout state a customer could have edited — the QR link
       // already encodes the real table/store ids (see FE-POS-App
       // TableQRModal), and the backend looks orders up by exactly those ids.
-      const urlTable = searchParams.get("table");
-      const urlStore = searchParams.get("store");
-      const order = await createOrder({
-        store: Number(urlStore),
-        tableId: urlTable ? Number(urlTable) : undefined,
-        customerName: customerName || undefined,
-        paymentMethod: selectedMethod,
-        session: searchParams.get("session") || undefined,
-        idempotencyKey: idempotencyKeyRef.current,
-        splitCount: selectedMethod === "Split Bill" ? splitCount : undefined,
-        items: buildOrderItemsPayload(items),
-      });
-
-      clearCart();
-      clearCheckoutData();
-      setConfirmedOrder(order);
-      setSuccess(true);
-    } catch (err) {
+      const payloadItems = buildOrderItemsPayload(items);
+      const snapshot = snapshotCartLines(items);
+      const submitted: SubmittedLine[] = items.map((item, i) => ({
+        key: item.id,
+        name: item.name,
+        unitPrice: item.price,
+        quantity: item.quantity,
+        productId: payloadItems[i]?.productId,
+        bundleId: payloadItems[i]?.bundleId ?? undefined,
+      }));
+      await submitOrder(payloadItems, snapshot, submitted);
+    } finally {
       // Allow a retry attempt on failure — the duplicate-flag is only meant
       // to stop an accidental double-tap from issuing two orders, not to
       // trap the customer out of trying again after a genuine failure.
       submitAttemptedRef.current = false;
-      setPaymentError(
-        err instanceof Error
-          ? err.message
-          : "Gagal membuat pesanan. Coba lagi.",
-      );
-    } finally {
       setProcessing(false);
     }
   };
+
+  // DR-11: explicit customer confirmation. Resubmits only while the live
+  // cart still matches the snapshot the 409 indexes were verified against,
+  // with the accepted server prices and the SAME idempotency key (the 409
+  // wrote nothing, so the key cannot replay a stale order).
+  const handleConfirmPriceChange = async () => {
+    if (!priceConflict || confirming) return;
+    setConfirming(true);
+    try {
+      const liveItems = useCartStore.getState().items;
+      if (!isSnapshotCurrent(liveItems, priceConflict.snapshot)) return;
+      // Position-precise (F1): each change carries its submit-time cart
+      // position — the backend `index` counts submitted lines in order, and
+      // the snapshot check above guarantees the live cart still has that
+      // exact order (same length, ids, customizations, prices). Reference
+      // lookup recovers the position; product ID alone would hit every
+      // same-product sibling sharing customizations/prices.
+      const submitOrderLines = priceConflict.submitted;
+      applyServerPrices(
+        priceConflict.changes.map((c) => ({
+          index: submitOrderLines.indexOf(c.line),
+          price: c.currentPrice,
+        })),
+      );
+      const updated = useCartStore.getState().items;
+      const payloadItems = buildOrderItemsPayload(updated);
+      const snapshot = snapshotCartLines(updated);
+      const submitted: SubmittedLine[] = updated.map((item, i) => ({
+        key: item.id,
+        name: item.name,
+        unitPrice: item.price,
+        quantity: item.quantity,
+        productId: payloadItems[i]?.productId,
+        bundleId: payloadItems[i]?.bundleId ?? undefined,
+      }));
+      await submitOrder(payloadItems, snapshot, submitted);
+    } finally {
+      setConfirming(false);
+    }
+  };
+
+  const handleDeclinePriceChange = () => {
+    setPriceConflict(null);
+  };
+
+  // Live staleness: the cart changed after the 409 (or while the dialog is
+  // open) — withhold confirm and send the customer back to the cart.
+  const conflictStale =
+    priceConflict !== null &&
+    !isSnapshotCurrent(items, priceConflict.snapshot);
 
   if (loading) {
     return (
@@ -230,6 +353,24 @@ const PaymentPage: React.FC = () => {
         </div>
       )}
 
+      {/* DR-17: tax-quote status. A missing/invalid quote blocks checkout
+          with an explicit message — the summary below never presents a
+          zero-tax total as final, and the pay button stays disabled. */}
+      {configError && (
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl p-4 space-y-3">
+          <p className="text-amber-700 dark:text-amber-300 text-sm font-medium">
+            {configError}
+          </p>
+          <button
+            type="button"
+            onClick={refetchConfig}
+            className="px-4 py-2 rounded-xl font-bold text-sm bg-white dark:bg-gray-800 border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300"
+          >
+            Coba lagi
+          </button>
+        </div>
+      )}
+
       <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 space-y-3 border border-gray-50 dark:border-gray-700/50 shadow-sm">
         <h3 className="font-bold text-gray-900 dark:text-gray-100">
           Ringkasan Pesanan
@@ -265,24 +406,35 @@ const PaymentPage: React.FC = () => {
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-gray-500 dark:text-gray-400">
-              Pajak ({Math.round(config.taxRate * 100)}%)
+              Pajak ({taxReady ? `${Math.round(config.taxRate * 100)}%` : "…"})
             </span>
             <span className="text-gray-700 dark:text-gray-300">
-              Rp{tax.toLocaleString()}
+              {taxReady ? `Rp${tax.toLocaleString()}` : "…"}
             </span>
           </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-500 dark:text-gray-400">
-              Service ({Math.round(config.serviceChargeRate * 100)}%)
-            </span>
-            <span className="text-gray-700 dark:text-gray-300">
-              Rp{serviceCharge.toLocaleString()}
-            </span>
-          </div>
+          {/* DR-17: QR service charge is not applicable when the quote
+              marks it null — the row is hidden and nothing is added to the
+              total. A numeric 0 is shown as 0% and adds nothing. */}
+          {config.serviceChargeRate !== null && (
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500 dark:text-gray-400">
+                Service (
+                {taxReady
+                  ? `${Math.round(config.serviceChargeRate * 100)}%`
+                  : "…"}
+                )
+              </span>
+              <span className="text-gray-700 dark:text-gray-300">
+                {taxReady ? `Rp${serviceCharge.toLocaleString()}` : "…"}
+              </span>
+            </div>
+          )}
         </div>
         <div className="flex justify-between font-bold text-lg pt-2 border-t border-gray-100 dark:border-gray-700">
           <span className="text-gray-900 dark:text-gray-100">Total</span>
-          <span className="text-primary">Rp{total.toLocaleString()}</span>
+          <span className="text-primary">
+            {taxReady ? `Rp${total.toLocaleString()}` : "…"}
+          </span>
         </div>
       </div>
 
@@ -320,7 +472,9 @@ const PaymentPage: React.FC = () => {
         onSelect={setSelectedMethod}
         splitCount={splitCount}
         onSplitChange={setSplitCount}
-        total={total}
+        // DR-17 (F1): the split-bill amount must come from the verified
+        // total only — null withholds it while the quote is not valid.
+        total={taxReady ? total : null}
       />
 
       {/* Fixed on mobile so the primary action stays reachable without
@@ -331,7 +485,7 @@ const PaymentPage: React.FC = () => {
       <div className="fixed inset-x-0 bottom-[64px] z-40 bg-secondary/95 dark:bg-gray-900/95 backdrop-blur-lg border-t border-gray-100 dark:border-gray-700/50 px-4 py-3 md:static md:inset-auto md:z-auto md:bg-transparent md:dark:bg-transparent md:backdrop-blur-none md:border-0 md:px-0 md:py-0">
         <button
           onClick={handlePayment}
-          disabled={processing}
+          disabled={processing || !taxReady}
           className="w-full bg-primary text-white py-4 rounded-2xl font-bold tap-scale disabled:opacity-50 shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-shadow"
         >
           {processing ? (
@@ -354,11 +508,29 @@ const PaymentPage: React.FC = () => {
               </svg>
               Memproses...
             </span>
-          ) : (
+          ) : taxReady ? (
             `Bayar Sekarang — Rp${total.toLocaleString()}`
+          ) : configLoading ? (
+            "Memuat…"
+          ) : (
+            "Bayar Sekarang"
           )}
         </button>
       </div>
+
+      <PriceChangeDialog
+        open={priceConflict !== null}
+        changes={(priceConflict?.changes || []).map((c) => ({
+          name: c.line.name,
+          quantity: c.line.quantity,
+          expectedPrice: c.expectedPrice,
+          currentPrice: c.currentPrice,
+        }))}
+        confirming={confirming}
+        stale={conflictStale}
+        onConfirm={handleConfirmPriceChange}
+        onDecline={handleDeclinePriceChange}
+      />
     </div>
   );
 };

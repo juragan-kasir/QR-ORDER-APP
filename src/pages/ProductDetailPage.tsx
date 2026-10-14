@@ -12,6 +12,7 @@ import {
   MessageSquare,
 } from "lucide-react";
 import CustomizationPanel from "../components/CustomizationPanel";
+import { resolveDisplayPrice } from "../utils/resolveDisplayPrice";
 import Skeleton from "../components/Skeleton";
 import type { Size, Spiciness, Review } from "../types";
 import { fetchProductReviews } from "../services/reviewService";
@@ -224,7 +225,8 @@ const ProductDetailPage: React.FC = () => {
 
   const optionGroupsTotal = selectedOptions.reduce((sum, o) => sum + o.price, 0);
 
-  const finalPrice = product.price + addOnTotal + optionGroupsTotal;
+  const finalPrice =
+    resolveDisplayPrice(product) + addOnTotal + optionGroupsTotal;
 
   const handleReviewSubmit = async () => {
     if (reviewRating === 0 || !reviewComment.trim() || !reviewName.trim())

@@ -5,6 +5,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useCartStore } from '../store/useCartStore';
 import ProductQuickPreview from './ProductQuickPreview';
 import { hasCustomizationOptions } from '../utils/productCustomization';
+import { resolveDisplayPrice } from '../utils/resolveDisplayPrice';
 import { transformCloudinaryImage, PRODUCT_IMAGE_WIDTH_SMALL } from '../utils/cloudinaryImage';
 
 interface MenuCardProps {
@@ -117,7 +118,7 @@ const MenuCard: React.FC<MenuCardProps> = ({ product }) => {
         )}
         <div className="flex items-center justify-between pt-1">
           <span className="font-bold text-primary text-lg">
-            Rp{product.price.toLocaleString()}
+            Rp{resolveDisplayPrice(product).toLocaleString()}
           </span>
           {product.stock > 0 ? (
             <button

@@ -6,7 +6,9 @@ interface PaymentMethodsProps {
   onSelect: (method: PaymentMethod) => void;
   splitCount: number;
   onSplitChange: (count: number) => void;
-  total: number;
+  // DR-17 (F1): null while the backend tax quote is idle/loading/missing/
+  // error — the split amount must not be derived from an unverified total.
+  total: number | null;
 }
 
 const paymentOptions: { id: PaymentMethod; label: string; icon: string; description: string }[] = [
@@ -71,7 +73,10 @@ const PaymentMethods: React.FC<PaymentMethodsProps> = ({
           <div className="text-sm text-gray-600 dark:text-gray-400 text-center">
             Setiap orang membayar:{' '}
             <span className="font-bold text-primary">
-              Rp{(total / splitCount).toLocaleString()}
+              {/* DR-17 (F1): never derive a per-person amount from an
+                  unverified total — withhold it until the tax quote is
+                  valid, exactly like the main checkout total. */}
+              {total === null ? "…" : `Rp${(total / splitCount).toLocaleString()}`}
             </span>
           </div>
         </div>
