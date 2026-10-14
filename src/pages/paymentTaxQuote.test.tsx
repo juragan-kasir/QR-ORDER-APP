@@ -88,9 +88,10 @@ function quoteCalls() {
 }
 
 async function payButton(): Promise<HTMLElement> {
-  // The pay button is the only one whose label ever mentions paying or
-  // loading ("Memuat…" while the quote loads, "Bayar Sekarang" after).
-  return screen.findByRole("button", { name: /memuat|bayar sekarang/i });
+  // The pay button is the only one whose label ever mentions paying,
+  // placing, or loading ("Memuat…" while the quote loads, "Buat Pesanan"
+  // after — DR-04 honesty: the tap places an unpaid order).
+  return screen.findByRole("button", { name: /memuat|bayar sekarang|buat pesanan/i });
 }
 
 beforeEach(() => {

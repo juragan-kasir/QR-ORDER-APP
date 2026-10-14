@@ -12,7 +12,7 @@ const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { setCheckoutData } = useCheckoutStore();
-  const { config } = useStoreConfig(searchParams.get("store"));
+  const { config, error: configError } = useStoreConfig(searchParams.get("store"));
 
   const href = (path: string) => {
     const sep = path.includes("?") ? "&" : "?";
@@ -141,9 +141,13 @@ const CheckoutPage: React.FC = () => {
           normal in-flow button on desktop (md:), where there is no bottom
           nav. */}
       <div className="fixed inset-x-0 bottom-[64px] z-40 bg-secondary/95 dark:bg-gray-900/95 backdrop-blur-lg border-t border-gray-100 dark:border-gray-700/50 px-4 py-3 md:static md:inset-auto md:z-auto md:bg-transparent md:dark:bg-transparent md:backdrop-blur-none md:border-0 md:px-0 md:py-0">
+        {/* DR-17: totals cannot be committed while authoritative rates are
+            unavailable — the payment step blocks too, but stopping here
+            avoids a dead-end trip through the flow. */}
         <button
           onClick={handleSubmit}
-          className="w-full bg-primary text-white py-4 rounded-2xl font-bold tap-scale shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-shadow"
+          disabled={!!configError}
+          className="w-full bg-primary text-white py-4 rounded-2xl font-bold tap-scale disabled:opacity-50 shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-shadow"
         >
           Lanjut ke Pembayaran
         </button>
