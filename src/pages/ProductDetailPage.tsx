@@ -425,7 +425,11 @@ const ProductDetailPage: React.FC = () => {
           <span
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full ${product.stock > 0 ? "bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400" : "bg-red-50 dark:bg-red-900/20 text-red-500"}`}
           >
-            {product.stock > 0 ? `✅ Stok: ${product.stock}` : "❌ Habis"}
+            {product.stock > 0
+              ? product.madeToOrder
+                ? "✅ Tersedia"
+                : `✅ Stok: ${product.stock}`
+              : "❌ Habis"}
           </span>
         </div>
 

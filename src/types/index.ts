@@ -70,6 +70,9 @@ export interface Product {
   isVegetarian: boolean;
   estimatedTime: number;
   stock: number;
+  // Made per order from a recipe: availability is decided by the backend's
+  // ingredient check, so no product stock count is shown.
+  madeToOrder?: boolean;
   storeId: string;
   sizes?: Size[];
   spicinessLevels?: Spiciness[];
