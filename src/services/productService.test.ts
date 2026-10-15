@@ -92,3 +92,39 @@ describe("mapBackendProductToFrontend — effectivePrice (DR-11)", () => {
     expect(raw).toEqual(snapshot);
   });
 });
+
+describe("mapBackendProductToFrontend — make_to_order availability", () => {
+  test("a recipe (make_to_order) dish with zero product stock stays orderable", () => {
+    const product = mapBackendProductToFrontend(
+      backendProductLike({ inventoryMode: "make_to_order", stock: 0, effectiveStock: 0 }),
+      "1",
+    );
+    expect(product.stock).toBeGreaterThan(0);
+    expect(product.madeToOrder).toBe(true);
+  });
+
+  test("a switched-off make_to_order dish is still unavailable", () => {
+    const product = mapBackendProductToFrontend(
+      backendProductLike({ inventoryMode: "make_to_order", stock: 0, isAvailable: false }),
+      "1",
+    );
+    expect(product.stock).toBe(0);
+  });
+
+  test("a stocked product keeps the effective per-store stock, including 0", () => {
+    const product = mapBackendProductToFrontend(
+      backendProductLike({ inventoryMode: "stocked", stock: 10, effectiveStock: 0 }),
+      "1",
+    );
+    expect(product.stock).toBe(0);
+    expect(product.madeToOrder).toBe(false);
+  });
+
+  test("a hybrid product is still limited by its effective stock", () => {
+    const product = mapBackendProductToFrontend(
+      backendProductLike({ inventoryMode: "hybrid", stock: 10, effectiveStock: 3 }),
+      "1",
+    );
+    expect(product.stock).toBe(3);
+  });
+});

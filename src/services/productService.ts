@@ -199,19 +199,24 @@ function mapBackendReviewToFrontend(br: BackendReview, productId: string): Revie
   };
 }
 
+// Stock value for a product that is not limited by its own finished-good
+// stock — the same sentinel bundles use (utils/bundleToProduct).
+export const UNLIMITED_PRODUCT_STOCK = 999;
+
+export const isMadeToOrder = (bp: Pick<BackendProduct, "inventoryMode">): boolean =>
+  (bp.inventoryMode ?? "stocked") === "make_to_order";
+
 // F4-03: customer-facing availability must reflect the backend's authoritative
 // per-store effective stock (a present store row wins — including an explicit
 // 0 — otherwise base product.stock), NOT the raw/global product.stock. The one
 // exception mirrors backend order validation (BE-POS-App order.js): a
 // make_to_order product's finished-good stock is not authoritative (its
-// ingredients are resolved at deduction time), so a store-resolved 0 must
-// NEVER render such a product unavailable — its existing (raw-stock) display
-// behavior is preserved unchanged.
+// recipe ingredients are checked and deducted by the backend), so its own
+// stock — usually 0 for a dish made per order — must NEVER render it
+// unavailable or cap the cart. Only isAvailable switches it off.
 function computeCustomerStock(bp: BackendProduct): number {
   if (!bp.isAvailable) return 0;
-  if ((bp.inventoryMode ?? "stocked") === "make_to_order") {
-    return bp.stock;
-  }
+  if (isMadeToOrder(bp)) return UNLIMITED_PRODUCT_STOCK;
   return bp.effectiveStock ?? bp.stock;
 }
 
@@ -256,6 +261,7 @@ export function mapBackendProductToFrontend(
     isVegetarian: !!bp.isVegetarian,
     estimatedTime: bp.estimationTime || 15,
     stock: computeCustomerStock(bp),
+    madeToOrder: isMadeToOrder(bp),
     storeId: storeId || String(bp.category),
     sizes: sizes.length > 0 ? (sizes as Product["sizes"]) : undefined,
     spicinessLevels: undefined,
