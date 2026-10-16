@@ -156,12 +156,21 @@ const PaymentPage: React.FC = () => {
           >
             Lihat Pesanan
           </button>
-          <button
-            onClick={() => navigate(href("/"))}
-            className="text-primary font-bold text-sm"
-          >
-            Pesan Lagi
-          </button>
+          {/* Satu meja hanya boleh punya satu order aktif (BE menolak ronde
+              kedua dengan TABLE_OCCUPIED) — tawarkan "Pesan Lagi" hanya
+              setelah order ini lunas, jika tidak tampilkan penjelasannya. */}
+          {confirmedOrder?.paymentStatus === "paid" ? (
+            <button
+              onClick={() => navigate(href("/"))}
+              className="text-primary font-bold text-sm"
+            >
+              Pesan Lagi
+            </button>
+          ) : (
+            <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">
+              Ingin tambah pesanan? Bayar pesanan ini di kasir dulu.
+            </p>
+          )}
         </div>
       </div>
     );
