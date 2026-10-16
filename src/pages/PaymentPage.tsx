@@ -159,7 +159,7 @@ const PaymentPage: React.FC = () => {
           {/* Satu meja hanya boleh punya satu order aktif (BE menolak ronde
               kedua dengan TABLE_OCCUPIED) — tawarkan "Pesan Lagi" hanya
               setelah order ini lunas, jika tidak tampilkan penjelasannya. */}
-          {confirmedOrder.paymentStatus === "paid" ? (
+          {confirmedOrder?.paymentStatus === "paid" ? (
             <button
               onClick={() => navigate(href("/"))}
               className="text-primary font-bold text-sm"
