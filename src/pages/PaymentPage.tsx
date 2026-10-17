@@ -51,6 +51,12 @@ const PaymentPage: React.FC = () => {
   const [success, setSuccess] = useState(false);
   const [confirmedOrder, setConfirmedOrder] = useState<Order | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
+  // DR-23 K: the backend reports that this cart's attempt key already
+  // recorded an order (409 IDEMPOTENCY_MISMATCH — e.g. the payment method
+  // was changed after a first submit whose answer never arrived). The order
+  // exists: never resubmit, never mint a new key; send the diner to the
+  // table's active orders instead.
+  const [orderAlreadyRecorded, setOrderAlreadyRecorded] = useState(false);
   const [loading, setLoading] = useState(true);
   // DR-11: pending price-change confirmation. Holds the submit-time cart
   // snapshot plus the matched backend mismatches. Never triggers a submit
@@ -240,6 +246,16 @@ const PaymentPage: React.FC = () => {
       setSuccess(true);
       return true;
     } catch (err) {
+      // DR-23 K: an order for this attempt already exists. The public QR
+      // endpoint does not identify it (no existingOrder), so recovery goes
+      // through the table's active orders (/orders). The attempt key and
+      // cart are left untouched — no automatic retry, no new attempt.
+      if (err instanceof ApiError && err.status === 409 && err.code === "IDEMPOTENCY_MISMATCH") {
+        setPriceConflict(null);
+        setPaymentError(null);
+        setOrderAlreadyRecorded(true);
+        return false;
+      }
       // DR-11: a price mismatch must never auto-retry. Park the
       // snapshot-bound mismatches for explicit customer confirmation.
       if (err instanceof ApiError && err.status === 409 && err.code === "PRICE_CHANGED") {
@@ -277,6 +293,7 @@ const PaymentPage: React.FC = () => {
     // match what the backend would charge — refuse to submit. The cart and
     // checkout data are untouched, so nothing is lost.
     if (!taxReady) return;
+    if (orderAlreadyRecorded) return;
     if (submitAttemptedRef.current) return;
     submitAttemptedRef.current = true;
     setProcessing(true);
@@ -384,6 +401,29 @@ const PaymentPage: React.FC = () => {
           Pembayaran
         </h2>
       </div>
+
+      {orderAlreadyRecorded && (
+        <div
+          role="alert"
+          data-testid="order-already-recorded"
+          className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl p-4 space-y-3"
+        >
+          <p className="text-amber-800 dark:text-amber-200 text-sm font-bold">
+            Pesanan ini sudah tercatat
+          </p>
+          <p className="text-amber-700 dark:text-amber-300 text-sm">
+            Pesanan untuk keranjang ini sudah diterima sebelumnya, jadi tidak dikirim lagi. Lihat
+            statusnya di halaman Pesanan, atau panggil pelayan bila perlu bantuan.
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate(href("/orders"))}
+            className="px-4 py-2 rounded-xl font-bold text-sm bg-primary text-white"
+          >
+            Lihat Pesanan
+          </button>
+        </div>
+      )}
 
       {paymentError && (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-4">
@@ -525,7 +565,7 @@ const PaymentPage: React.FC = () => {
       <div className="fixed inset-x-0 bottom-[64px] z-40 bg-secondary/95 dark:bg-gray-900/95 backdrop-blur-lg border-t border-gray-100 dark:border-gray-700/50 px-4 py-3 md:static md:inset-auto md:z-auto md:bg-transparent md:dark:bg-transparent md:backdrop-blur-none md:border-0 md:px-0 md:py-0">
         <button
           onClick={handlePayment}
-          disabled={processing || !taxReady}
+          disabled={processing || !taxReady || orderAlreadyRecorded}
           className="w-full bg-primary text-white py-4 rounded-2xl font-bold tap-scale disabled:opacity-50 shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-shadow"
         >
           {processing ? (
