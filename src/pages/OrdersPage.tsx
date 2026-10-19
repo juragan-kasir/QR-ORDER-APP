@@ -6,6 +6,7 @@ import { ListOrdered, RefreshCw } from "lucide-react";
 import Skeleton from "../components/Skeleton";
 import BundleBadge from "../components/BundleBadge";
 import { bareTableDesignator } from "../utils/tableDisplay";
+import { getDinerSession } from "../utils/dinerSession";
 
 function statusBadgeClass(status: string) {
   if (status === "Ditolak" || status === "Dibatalkan")
@@ -75,7 +76,8 @@ const OrdersPage: React.FC = () => {
   const navigate = useNavigate();
   const store = searchParams.get("store");
   const table = searchParams.get("table");
-  const session = searchParams.get("session") || undefined;
+  // D-10: only this device's own orders (never the session printed in the QR).
+  const session = getDinerSession(store);
   const { orders, loading, error, refetch, lastFetchedAt } = useOrders(store, table ? { tableId: table, session } : undefined);
 
   const href = (path: string) => {
