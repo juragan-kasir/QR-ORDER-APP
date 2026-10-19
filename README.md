@@ -92,5 +92,6 @@ src/
 
 ## Related
 
+- [API Reference](./docs/API.md) — every backend endpoint this app calls (public customer endpoints, payloads, error codes, caching)
 - [Backend API](https://github.com/teddferdy/BE-POS-App)
 - [Frontend App](https://github.com/teddferdy/FE-POS-App)
