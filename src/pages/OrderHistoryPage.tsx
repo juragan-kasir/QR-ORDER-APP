@@ -8,6 +8,7 @@ import { fetchProductById, fetchBundles } from "../services/productService";
 import Skeleton from "../components/Skeleton";
 import BundleBadge from "../components/BundleBadge";
 import { bundleToCartProduct } from "../utils/bundleToProduct";
+import { getDinerSession } from "../utils/dinerSession";
 
 const STATUS_FILTERS: { id: string; label: string }[] = [
   { id: "all", label: "Semua" },
@@ -30,7 +31,8 @@ const OrderHistoryPage: React.FC = () => {
   const addItem = useCartStore((state) => state.addItem);
   const store = searchParams.get("store");
   const table = searchParams.get("table") || undefined;
-  const session = searchParams.get("session") || undefined;
+  // D-10: only this device's own orders (never the session printed in the QR).
+  const session = getDinerSession(store);
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [total, setTotal] = useState(0);

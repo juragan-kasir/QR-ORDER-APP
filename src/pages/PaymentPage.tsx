@@ -23,6 +23,7 @@ import PriceChangeDialog from "../components/PriceChangeDialog";
 import { ApiError } from "../services/apiClient";
 import { bareTableDesignator } from "../utils/tableDisplay";
 import { cartSignature, getAttemptKey, clearAttemptKey } from "../utils/attemptKey";
+import { getDinerSession } from "../utils/dinerSession";
 
 const PaymentPage: React.FC = () => {
   const navigate = useNavigate();
@@ -233,7 +234,8 @@ const PaymentPage: React.FC = () => {
         tableId: urlTable ? Number(urlTable) : undefined,
         customerName: customerName || undefined,
         paymentMethod: selectedMethod,
-        session: searchParams.get("session") || undefined,
+        // D-10: the diner's own device token, not the shared table QR value.
+        session: getDinerSession(store),
         idempotencyKey: getAttemptKey(signature),
         splitCount: selectedMethod === "Split Bill" ? splitCount : undefined,
         items: payloadItems,
