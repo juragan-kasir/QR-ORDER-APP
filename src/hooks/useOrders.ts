@@ -104,7 +104,9 @@ export function useOrders(
                 ? "Ditolak oleh kasir"
                 : status === "Dibatalkan"
                   ? "Dibatalkan"
-                  : `Status berubah: ${status}`;
+                  : status === "Kedaluwarsa"
+                    ? "Pesanan kedaluwarsa: belum dibayar dalam batas waktu"
+                    : `Status berubah: ${status}`;
             if ("Notification" in window) {
               Notification.requestPermission()
                 .then(() => {

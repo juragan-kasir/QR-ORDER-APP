@@ -11,6 +11,8 @@ import { getDinerSession } from "../utils/dinerSession";
 function statusBadgeClass(status: string) {
   if (status === "Ditolak" || status === "Dibatalkan")
     return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300";
+  if (status === "Kedaluwarsa")
+    return "bg-muted text-muted-foreground";
   if (status === "Menunggu Konfirmasi")
     return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300";
   if (status === "Sedang Dimasak" || status === "Diproses")
@@ -30,6 +32,8 @@ function statusMessage(status: string) {
       return "Pesananmu ditolak oleh kasir.";
     case "Dibatalkan":
       return "Pesananmu dibatalkan.";
+    case "Kedaluwarsa":
+      return "Pesananmu kedaluwarsa karena belum dibayar dalam batas waktu. Silakan pesan lagi.";
     case "Diproses":
       return "Pesananmu sudah dikonfirmasi dan sedang diproses.";
     case "Sedang Dimasak":
