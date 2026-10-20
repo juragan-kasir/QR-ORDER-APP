@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle2, Clock, ChefHat, Bike, MapPin, XCircle, Ban } from 'lucide-react';
+import { CheckCircle2, Clock, ChefHat, Bike, MapPin, XCircle, Ban, TimerOff } from 'lucide-react';
 import type { OrderStatus } from '../types';
 
 interface OrderStatusTrackerProps {
@@ -21,14 +21,21 @@ const OrderStatusTracker: React.FC<OrderStatusTrackerProps> = ({
 }) => {
   const isRejected = currentStatus === 'Ditolak';
   const isCancelled = currentStatus === 'Dibatalkan';
-  const isTerminalNegative = isRejected || isCancelled;
+  const isExpired = currentStatus === 'Kedaluwarsa';
+  const isTerminalNegative = isRejected || isCancelled || isExpired;
 
   if (isTerminalNegative) {
-    const NegativeIcon = isRejected ? XCircle : Ban;
-    const label = isRejected ? 'Pesanan Ditolak' : 'Pesanan Dibatalkan';
+    const NegativeIcon = isRejected ? XCircle : isExpired ? TimerOff : Ban;
+    const label = isRejected
+      ? 'Pesanan Ditolak'
+      : isExpired
+        ? 'Pesanan Kedaluwarsa'
+        : 'Pesanan Dibatalkan';
     const subtext = isRejected
       ? 'Pesanan ini tidak dapat diproses oleh restoran.'
-      : 'Pesanan ini telah dibatalkan.';
+      : isExpired
+        ? 'Pesanan tidak dibayar dalam batas waktu, jadi dibatalkan otomatis. Silakan pesan lagi.'
+        : 'Pesanan ini telah dibatalkan.';
 
     return (
       <div

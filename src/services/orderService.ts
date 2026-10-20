@@ -20,6 +20,8 @@ interface BackendOrder {
   cashierId: number | null;
   cashierName: string | null;
   status: string;
+  // "expired" | "cancelled" | "void" once ended, null while open (BE)
+  endReason?: string | null;
   subTotal: number;
   discountType: string;
   discountValue: number;
@@ -82,6 +84,7 @@ interface CustomerOrderResponse {
     id: number;
     orderNumber: string;
     status: string;
+    endReason?: string | null;
     paymentStatus?: string;
     totalPrice: number;
     totalQuantity: number;
@@ -100,7 +103,10 @@ interface CustomerOrderResponse {
   };
 }
 
-function mapStatus(beStatus: string): OrderStatus {
+// `endReason` (BE public order endpoints) tells a system expiry apart from a
+// staff cancellation; both arrive as status "cancelled".
+function mapStatus(beStatus: string, endReason?: string | null): OrderStatus {
+  if (beStatus === "cancelled" && endReason === "expired") return "Kedaluwarsa";
   const map: Record<string, OrderStatus> = {
     pending: "Menunggu Konfirmasi",
     confirmed: "Diproses",
@@ -199,9 +205,9 @@ function mapBackendOrderToFrontend(bo: BackendOrder): Order {
     paymentMethod: mapPaymentMethod(bo.paymentMethod),
     paymentStatus: bo.paymentStatus || "unpaid",
     splitCount: bo.splitCount ?? undefined,
-    status: mapStatus(bo.status),
+    status: mapStatus(bo.status, bo.endReason),
     createdAt: bo.createdAt,
-    statusHistory: [{ status: mapStatus(bo.status), timestamp: bo.createdAt }],
+    statusHistory: [{ status: mapStatus(bo.status, bo.endReason), timestamp: bo.createdAt }],
   };
 }
 
@@ -285,10 +291,10 @@ export async function fetchCustomerOrder(
       serviceCharge: 0,
       total: d.totalPrice,
       paymentMethod: "QRIS",
-      status: mapStatus(d.status),
+      status: mapStatus(d.status, d.endReason),
       paymentStatus: d.paymentStatus || "unpaid",
       createdAt: d.createdAt,
-      statusHistory: [{ status: mapStatus(d.status), timestamp: d.createdAt }],
+      statusHistory: [{ status: mapStatus(d.status, d.endReason), timestamp: d.createdAt }],
     };
   } catch (err) {
     if (err instanceof ApiError) {

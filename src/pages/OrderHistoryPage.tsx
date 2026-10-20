@@ -64,7 +64,8 @@ const OrderHistoryPage: React.FC = () => {
           return COMPLETED_STATUSES.has(o.status);
         }
         if (statusFilter === "cancelled") {
-          return o.status === "Dibatalkan";
+          // a system expiry is a cancellation, never a rejection
+          return o.status === "Dibatalkan" || o.status === "Kedaluwarsa";
         }
         if (statusFilter === "rejected") {
           return o.status === "Ditolak";

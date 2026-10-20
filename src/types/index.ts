@@ -18,7 +18,10 @@ export type OrderStatus =
   | "Siap Diantar"
   | "Sudah Diantar"
   | "Ditolak"
-  | "Dibatalkan";
+  | "Dibatalkan"
+  // DR-09: an unpaid order the system cancelled after the time limit — not
+  // a cashier's rejection.
+  | "Kedaluwarsa";
 
 export type PaymentMethod =
   | "QRIS"
