@@ -103,17 +103,35 @@ interface CustomerOrderResponse {
   };
 }
 
+// A paid order's own status stops at "paid" — from then on the kitchen
+// display advances its ITEMS (pending → preparing → ready → served, BE
+// order.js getKitchenOrders). Paying therefore says nothing about the food:
+// the diner's step is the kitchen progress of the items, so a QR order the
+// cashier settles before serving never reads "Sudah Diantar".
+function paidOrderStatus(items?: { status?: string | null }[]): OrderStatus {
+  const statuses = (items || []).map((item) => item.status || "pending");
+  if (statuses.length === 0) return "Diproses";
+  if (statuses.every((s) => s === "served")) return "Sudah Diantar";
+  if (statuses.every((s) => s === "ready" || s === "served")) return "Siap Diantar";
+  if (statuses.some((s) => s !== "pending")) return "Sedang Dimasak";
+  return "Diproses";
+}
+
 // `endReason` (BE public order endpoints) tells a system expiry apart from a
 // staff cancellation; both arrive as status "cancelled".
-function mapStatus(beStatus: string, endReason?: string | null): OrderStatus {
+function mapStatus(
+  beStatus: string,
+  endReason?: string | null,
+  items?: { status?: string | null }[],
+): OrderStatus {
   if (beStatus === "cancelled" && endReason === "expired") return "Kedaluwarsa";
+  if (beStatus === "paid") return paidOrderStatus(items);
   const map: Record<string, OrderStatus> = {
     pending: "Menunggu Konfirmasi",
     confirmed: "Diproses",
     preparing: "Sedang Dimasak",
     ready: "Siap Diantar",
     served: "Sudah Diantar",
-    paid: "Sudah Diantar",
     cancelled: "Ditolak",
     void: "Dibatalkan",
   };
@@ -205,9 +223,9 @@ function mapBackendOrderToFrontend(bo: BackendOrder): Order {
     paymentMethod: mapPaymentMethod(bo.paymentMethod),
     paymentStatus: bo.paymentStatus || "unpaid",
     splitCount: bo.splitCount ?? undefined,
-    status: mapStatus(bo.status, bo.endReason),
+    status: mapStatus(bo.status, bo.endReason, bo.items),
     createdAt: bo.createdAt,
-    statusHistory: [{ status: mapStatus(bo.status, bo.endReason), timestamp: bo.createdAt }],
+    statusHistory: [{ status: mapStatus(bo.status, bo.endReason, bo.items), timestamp: bo.createdAt }],
   };
 }
 
@@ -291,10 +309,10 @@ export async function fetchCustomerOrder(
       serviceCharge: 0,
       total: d.totalPrice,
       paymentMethod: "QRIS",
-      status: mapStatus(d.status, d.endReason),
+      status: mapStatus(d.status, d.endReason, d.items),
       paymentStatus: d.paymentStatus || "unpaid",
       createdAt: d.createdAt,
-      statusHistory: [{ status: mapStatus(d.status, d.endReason), timestamp: d.createdAt }],
+      statusHistory: [{ status: mapStatus(d.status, d.endReason, d.items), timestamp: d.createdAt }],
     };
   } catch (err) {
     if (err instanceof ApiError) {
