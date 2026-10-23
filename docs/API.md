@@ -2,6 +2,8 @@
 
 This document describes every backend endpoint consumed by this app, based on the actual code in `src/services/*`. The backend is **BE-POS-App**; this app only calls its **public (unauthenticated) customer endpoints**.
 
+> **Checkpoint:** BISA `a9ff7f4`; BE `c9fe118` (2026-10-23). Tests: 25 Vitest files; CI runs lint + test + build.
+
 ## Client setup (`src/services/apiClient.ts`)
 
 - **Base URL:** `VITE_API_BASE_URL` (e.g. `https://api-bisa-nota.vercel.app`). In dev, falls back to `http://localhost:5001`; in production a missing variable throws at load (never silently falls back to localhost).
@@ -24,13 +26,14 @@ Creates an anonymous QR order.
 - **Body:** `store` (required), `tableId`, `customerName`, `notes`, `paymentMethod`, `session`, `splitCount`, `idempotencyKey` (stable per checkout attempt — the backend dedupes on `(store, idempotencyKey)` so a retry never creates a second order), `items[]`.
 - **Item shape:** `productId` (or `bundleId` for a bundle line — the backend resolves the underlying products), `productName`, `quantity`, `price`, `expectedPrice` (optional echo of the charged unit price; a mismatch answers `409 PRICE_CHANGED` with the changed `items`), `notes`, `options`, `modifiers`.
 - **Response:** `{ message, data: <order> }` — order with `id`, `publicToken`, `orderNumber`, `status`, totals (`subTotal`, `discountAmount`, `taxAmount`, `serviceChargeAmount`, `totalPrice`), `items[]`, `table`.
-- **Notes:** `customerId` is deliberately never sent (DR-16): the app has no verified member lookup, so orders are anonymous and staff attach a verified member at settlement in the POS app.
+- **Notes:** `customerId` is deliberately never sent (DR-16): the app has no verified member lookup, so orders are anonymous and staff attach a verified member at settlement in the POS app. A client-supplied `customerId` is rejected by the backend with `MEMBER_ATTACH_REQUIRES_STAFF`. An archived outlet returns `409 STORE_ARCHIVED`; a closed outlet returns `409 STORE_CLOSED` with `nextOpenAt` when known.
 - **Service:** `orderService.ts` → `createCustomerOrder`.
 
 ### GET `/order/customer-order/:publicToken`
 Public order status, keyed by the order's opaque `publicToken` (never the DB id).
 
 - **Response:** `{ data: <order> }` (no `success` flag) — `status`, `totalPrice`, `items[]` (id, productName, quantity, price, totalPrice, status), `table`.
+- **Status mapping:** kitchen `item.status` drives the diner label. A backend `paid` order is mapped by `paidOrderStatus`: all items `served` → `Sudah Diantar`; all `ready`/`served` → `Siap Diantar`; any non-`pending` → `Sedang Dimasak`; otherwise `Diproses`. Payment status is shown separately, so a cashier settling before serving never makes the order read `Sudah Diantar`. `endReason: "expired"` maps a cancelled order to `Kedaluwarsa`.
 - **Service:** `orderService.ts` → `fetchCustomerOrder`.
 
 ### GET `/order/customer-orders`
@@ -38,6 +41,7 @@ Lists QR orders (`source: "qr"`) for one table of one store, newest first.
 
 - **Query:** `store` (required), `tableId`, `session`, `page`, `limit`.
 - **Response:** `{ data: [], pagination: { total, ... } }`.
+- **Session privacy:** the app sends this device's `bisamakan-diner-session:<store>` token, never the `session` printed in the table QR. This keeps one diner's order history off another diner's phone at the same table. The printed QR `session` is still used for table context/order creation but is not treated as an identity token.
 - **Service:** `orderService.ts` → `fetchCustomerOrders`.
 
 ### GET `/order/customer-menu`
@@ -79,8 +83,8 @@ Resolves the PPN (and service-charge) rate charged on the QR channel.
 ### GET `/location/get-location-public`
 Public store/location list.
 
-- **Response:** `{ success, message, data: [{ id, store, name, city, province, detailLocation, latitude, longitude, status }] }`.
-- **Notes:** used both to resolve the store display name (`fetchStoreConfig`) and to list stores (`fetchPublicStores`, failures resolve to `[]`).
+- **Response:** `{ success, message, data: [{ id, store, name, city, province, detailLocation, latitude, longitude, status, isOpen, nextOpenAt }] }` (`timezone` and `openingHours` are read server-side and not returned).
+- **Notes:** `isOpen`/`nextOpenAt` are derived from `openingHours` + `timezone` by the backend. Used to resolve the store display name and to show closed-state messaging (`fetchStoreConfig`), and to list stores (`fetchPublicStores`, failures resolve to `[]`).
 - **Service:** `storeService.ts` → `fetchStoreName`, `fetchPublicStores`.
 
 ### POST `/order/customer-review`
@@ -125,6 +129,13 @@ Lists this table's waiter requests.
 | `customerMenuCache` | `storeId` | In-memory, module-scoped (lost on reload). Shares the in-flight promise across callers; a failed request is evicted immediately so later calls retry fresh. `fetchProductById` reuses the menu cache (zero extra requests on detail pages). |
 | `bundlesCache`, `promosCache` | `storeId` | Same pattern. |
 | `storeConfigCache` | `storeId` | Same pattern; additionally evicts non-`ok` results so `missing`/`error` never pin a store to a broken state. `fetchStoreConfig` never rejects — callers branch on `status`. |
+
+## Quality & localization
+
+- **Tests:** 25 Vitest files. CI runs `npm run lint`, `npm test`, and `npm run build`; the build asserts the dev API URL (`localhost:5001`) is absent from `dist`.
+- **Localization:** UI copy is Indonesian; there is no i18n framework or locale switch yet.
+- **Accessibility:** modal/bottom-sheet components use `aria-modal`, labelled headings, and the shared `useDialogA11y` hook; coverage is partial and not audited end-to-end.
+- **Session privacy:** diner identity is per-device (`bisamakan-diner-session:<store>` in localStorage), not the printed table QR `session`; see the order-list note above.
 
 ## Related documents
 
