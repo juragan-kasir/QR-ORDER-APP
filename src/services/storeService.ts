@@ -21,6 +21,8 @@ interface LocationPublicItem {
   latitude: number | null;
   longitude: number | null;
   status: string;
+  isOpen?: boolean;
+  nextOpenAt?: string | null;
 }
 
 interface LocationPublicResponse {
@@ -41,6 +43,8 @@ export interface StoreConfig {
   // from store tax rows; the quote already resolved store/global config.
   serviceChargeRate: number | null;
   storeName: string;
+  storeIsOpen?: boolean | null;
+  nextOpenAt?: string | null;
   status: TaxQuoteStatus;
 }
 
@@ -48,6 +52,8 @@ const DEFAULT_STORE_CONFIG: StoreConfig = {
   taxRate: 0,
   serviceChargeRate: null,
   storeName: "",
+  storeIsOpen: null,
+  nextOpenAt: null,
   status: "idle",
 };
 
@@ -124,7 +130,9 @@ async function fetchTaxQuote(storeId: string): Promise<StoreConfig> {
   };
 }
 
-async function fetchStoreName(storeId: string): Promise<string> {
+async function fetchStoreInfo(
+  storeId: string,
+): Promise<Pick<StoreConfig, "storeName" | "storeIsOpen" | "nextOpenAt">> {
   try {
     const locRes = await apiClient.get<LocationPublicResponse>(
       "/location/get-location-public",
@@ -133,9 +141,13 @@ async function fetchStoreName(storeId: string): Promise<string> {
     const store = locations.find(
       (l) => l.store === Number(storeId) || l.id === Number(storeId),
     );
-    return store?.name || "";
+    return {
+      storeName: store?.name || "",
+      storeIsOpen: store?.isOpen ?? null,
+      nextOpenAt: store?.nextOpenAt ?? null,
+    };
   } catch {
-    return "";
+    return { storeName: "", storeIsOpen: null, nextOpenAt: null };
   }
 }
 
@@ -143,11 +155,11 @@ async function fetchStoreConfigFromApi(storeId: string): Promise<StoreConfig> {
   // Store name and tax quote resolve independently: a failed quote must
   // not hide the store name, and a failed location lookup must not mask
   // a valid (or invalid) tax quote.
-  const [quote, storeName] = await Promise.all([
+  const [quote, storeInfo] = await Promise.all([
     fetchTaxQuote(storeId),
-    fetchStoreName(storeId),
+    fetchStoreInfo(storeId),
   ]);
-  return { ...quote, storeName };
+  return { ...quote, ...storeInfo };
 }
 
 export async function fetchStoreConfig(storeId: string): Promise<StoreConfig> {
@@ -190,6 +202,8 @@ export interface StoreLocation {
   name: string;
   city: string;
   province: string;
+  isOpen?: boolean;
+  nextOpenAt?: string | null;
 }
 
 export async function fetchPublicStores(): Promise<StoreLocation[]> {

@@ -260,6 +260,40 @@ describe("fetchStoreConfig — QR tax quote (DR-17)", () => {
     expect(quoteCalls()).toHaveLength(1);
   });
 
+  test("maps the outlet open state for the closed banner", async () => {
+    mockedGet.mockImplementation((url: string) => {
+      if (url === "/order/customer-tax-rate") {
+        return Promise.resolve(quoteResponse(11, null));
+      }
+      return Promise.resolve({
+        data: {
+          message: "ok",
+          data: [
+            {
+              store: 95,
+              id: 95,
+              name: "Toko Tutup",
+              city: "",
+              province: "",
+              detailLocation: "",
+              latitude: null,
+              longitude: null,
+              status: "active",
+              isOpen: false,
+              nextOpenAt: "2026-10-27T03:00:00.000Z",
+            },
+          ],
+        },
+      });
+    });
+
+    await expect(fetchStoreConfig("95")).resolves.toMatchObject({
+      storeName: "Toko Tutup",
+      storeIsOpen: false,
+      nextOpenAt: "2026-10-27T03:00:00.000Z",
+    });
+  });
+
   test("store name still resolves when the quote fails, and vice versa", async () => {
     mockedGet.mockImplementation((url: string) => {
       if (url === "/order/customer-tax-rate") {

@@ -10,7 +10,7 @@ import BundleCard from "../components/BundleCard";
 import PromoBanner from "../components/PromoBanner";
 import CategoryIcon from "../components/CategoryIcon";
 import Skeleton from "../components/Skeleton";
-import { RefreshCw } from "lucide-react";
+import { Clock, RefreshCw } from "lucide-react";
 import type { Category } from "../types";
 
 const HomePage: React.FC = () => {
@@ -123,6 +123,19 @@ const HomePage: React.FC = () => {
         <div className="bg-destructive/10 text-destructive text-sm px-4 py-3 rounded-2xl font-medium flex items-start gap-2">
           <span>⚠️</span>
           <span>{storeConfigError}</span>
+        </div>
+      )}
+
+      {config.storeIsOpen === false && (
+        <div
+          role="status"
+          className="bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200 text-sm px-4 py-3 rounded-2xl font-medium flex items-start gap-2"
+        >
+          <Clock size={16} className="mt-0.5 shrink-0" />
+          <span>
+            Outlet sedang tutup. Kamu tetap bisa melihat menu, tetapi pesanan
+            baru belum dapat dibuat.
+          </span>
         </div>
       )}
 
