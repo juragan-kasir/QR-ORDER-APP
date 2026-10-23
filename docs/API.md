@@ -2,7 +2,7 @@
 
 This document describes every backend endpoint consumed by this app, based on the actual code in `src/services/*`. The backend is **BE-POS-App**; this app only calls its **public (unauthenticated) customer endpoints**.
 
-> **Checkpoint:** BISA `a9ff7f4`; BE `c9fe118` (2026-10-23). Tests: 25 Vitest files; CI runs lint + test + build.
+> **Checkpoint:** BISA `a9ff7f4`; BE `c9fe118` (2026-10-23). Tests: 26 Vitest files; CI runs lint + test + build.
 
 ## Client setup (`src/services/apiClient.ts`)
 
@@ -25,9 +25,17 @@ Creates an anonymous QR order.
 
 - **Body:** `store` (required), `tableId`, `customerName`, `notes`, `paymentMethod`, `session`, `splitCount`, `idempotencyKey` (stable per checkout attempt — the backend dedupes on `(store, idempotencyKey)` so a retry never creates a second order), `items[]`.
 - **Item shape:** `productId` (or `bundleId` for a bundle line — the backend resolves the underlying products), `productName`, `quantity`, `price`, `expectedPrice` (optional echo of the charged unit price; a mismatch answers `409 PRICE_CHANGED` with the changed `items`), `notes`, `options`, `modifiers`.
-- **Response:** `{ message, data: <order> }` — order with `id`, `publicToken`, `orderNumber`, `status`, totals (`subTotal`, `discountAmount`, `taxAmount`, `serviceChargeAmount`, `totalPrice`), `items[]`, `table`.
+- **Response:** `{ message, data: <order> }` — order with `id`, `publicToken`, `orderNumber`, `status`, totals (`subTotal`, `discountAmount`, `taxAmount`, `serviceChargeAmount`, `totalPrice`), `items[]`, `table`. The best active automatic campaign for the outlet is applied and PPN is computed on the discounted subtotal — the same figures as `/order/customer-quote`.
 - **Notes:** `customerId` is deliberately never sent (DR-16): the app has no verified member lookup, so orders are anonymous and staff attach a verified member at settlement in the POS app. A client-supplied `customerId` is rejected by the backend with `MEMBER_ATTACH_REQUIRES_STAFF`. An archived outlet returns `409 STORE_ARCHIVED`; a closed outlet returns `409 STORE_CLOSED` with `nextOpenAt` when known.
 - **Service:** `orderService.ts` → `createCustomerOrder`.
+
+### POST `/order/customer-quote`
+Read-only price quote for the payment summary (FG-PRICE-02).
+
+- **Body:** `store`, `items[]` (same item shape as `customer-create`).
+- **Response:** `{ success, data: { subTotal, discountAmount, discountApplied: [{ campaignId, name, amount }], taxRate, taxAmount, serviceChargeAmount, totalPrice, items[] } }` — priced by the same code as `customer-create`, so the quoted total is the total charged. PPN is computed on the discounted subtotal.
+- **Usage:** `PaymentPage` re-quotes whenever the cart lines change (`hooks/useCustomerQuote.ts`). With a quote, every summary figure is the backend's and the applied automatic campaign is shown by name. Without one (network error, refusal) the summary falls back to the undiscounted cart and says so — that can only overstate the total. The confirmation screen shows the `totalPrice`/`discountAmount` recorded on the created order.
+- **Service:** `orderService.ts` → `fetchCustomerQuote` (never rejects; returns `{ status: "ok", quote } | { status: "error" }`).
 
 ### GET `/order/customer-order/:publicToken`
 Public order status, keyed by the order's opaque `publicToken` (never the DB id).
@@ -132,7 +140,7 @@ Lists this table's waiter requests.
 
 ## Quality & localization
 
-- **Tests:** 25 Vitest files. CI runs `npm run lint`, `npm test`, and `npm run build`; the build asserts the dev API URL (`localhost:5001`) is absent from `dist`.
+- **Tests:** 26 Vitest files. CI runs `npm run lint`, `npm test`, and `npm run build`; the build asserts the dev API URL (`localhost:5001`) is absent from `dist`.
 - **Localization:** UI copy is Indonesian; there is no i18n framework or locale switch yet.
 - **Accessibility:** modal/bottom-sheet components use `aria-modal`, labelled headings, and the shared `useDialogA11y` hook; coverage is partial and not audited end-to-end.
 - **Session privacy:** diner identity is per-device (`bisamakan-diner-session:<store>` in localStorage), not the printed table QR `session`; see the order-list note above.

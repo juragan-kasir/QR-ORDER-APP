@@ -1,5 +1,6 @@
 import apiClient, { ApiError } from "./apiClient";
 import type { Order, OrderStatus, PaymentMethod } from "../types";
+import type { OrderItemPayload } from "../utils/buildOrderItemsPayload";
 
 interface CustomerCreateResponse {
   message: string;
@@ -217,6 +218,7 @@ function mapBackendOrderToFrontend(bo: BackendOrder): Order {
       bundleName: item.bundleName || undefined,
     })),
     subtotal: bo.subTotal,
+    discount: Number(bo.discountAmount) || 0,
     tax: bo.taxAmount,
     serviceCharge: bo.serviceChargeAmount,
     total: bo.totalPrice,
@@ -345,5 +347,48 @@ export async function fetchCustomerOrders(
       throw err;
     }
     return { orders: [], total: 0 };
+  }
+}
+
+// FG-PRICE-02: the diner's summary is priced by the backend with the same
+// campaign, discount base and PPN resolver as the order itself, so the total
+// shown is the total charged. Never rejects: callers branch on `status`.
+export interface CustomerQuote {
+  subTotal: number;
+  discountAmount: number;
+  discountApplied: { campaignId: number; name: string; amount: number }[];
+  taxRate: number;
+  taxAmount: number;
+  serviceChargeAmount: number;
+  totalPrice: number;
+}
+
+export type CustomerQuoteResult =
+  | { status: "ok"; quote: CustomerQuote }
+  | { status: "error" };
+
+const isQuote = (q: unknown): q is CustomerQuote => {
+  if (!q || typeof q !== "object") return false;
+  const v = q as Record<string, unknown>;
+  return (
+    ["subTotal", "discountAmount", "taxAmount", "totalPrice"].every(
+      (k) => typeof v[k] === "number" && Number.isFinite(v[k] as number),
+    ) && Array.isArray(v.discountApplied)
+  );
+};
+
+export async function fetchCustomerQuote(
+  store: number,
+  items: OrderItemPayload[],
+): Promise<CustomerQuoteResult> {
+  try {
+    const res = await apiClient.post<{ data?: unknown }>(
+      "/order/customer-quote",
+      { store, items },
+    );
+    const quote = res?.data?.data;
+    return isQuote(quote) ? { status: "ok", quote } : { status: "error" };
+  } catch {
+    return { status: "error" };
   }
 }

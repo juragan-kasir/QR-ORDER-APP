@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useCartStore } from "../store/useCartStore";
 import { useOrderStore } from "../store/useOrderStore";
 import { useCheckoutStore } from "../store/useCheckoutStore";
 import { useStoreConfig } from "../hooks/useStoreConfig";
 import { usePromos } from "../hooks/usePromos";
+import { useCustomerQuote } from "../hooks/useCustomerQuote";
 import type { Order, PaymentMethod } from "../types";
 import PaymentMethods from "../components/PaymentMethods";
 import { ChevronLeft, PartyPopper } from "lucide-react";
@@ -40,6 +41,10 @@ const PaymentPage: React.FC = () => {
     refetch: refetchConfig,
   } = useStoreConfig(store);
   const { promos } = usePromos(store);
+  // FG-PRICE-02: the backend prices the summary exactly as it will charge
+  // the order (automatic campaign, PPN on the discounted subtotal).
+  const quoteItems = useMemo(() => buildOrderItemsPayload(items), [items]);
+  const { result: quoteResult } = useCustomerQuote(store, quoteItems);
 
   const href = (path: string) => {
     const sep = path.includes("?") ? "&" : "?";
@@ -153,6 +158,26 @@ const PaymentPage: React.FC = () => {
                 </span>
               </div>
             )}
+            {/* FG-PRICE-02: the total the backend recorded for this order —
+                what the cashier will collect. */}
+            {(confirmedOrder.discount ?? 0) > 0 && (
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500 dark:text-gray-400 text-sm">Diskon</span>
+                <span className="font-medium text-green-600 dark:text-green-400">
+                  −Rp{(confirmedOrder.discount ?? 0).toLocaleString()}
+                </span>
+              </div>
+            )}
+            {Number.isFinite(confirmedOrder.total) && (
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500 dark:text-gray-400 text-sm">
+                  Total Tagihan
+                </span>
+                <span className="font-bold text-gray-900 dark:text-gray-100">
+                  Rp{confirmedOrder.total.toLocaleString()}
+                </span>
+              </div>
+            )}
           </div>
         )}
 
@@ -206,16 +231,23 @@ const PaymentPage: React.FC = () => {
   // this keeps what the customer is shown in sync with what they're
   // actually charged, even if the cart changed after Checkout (e.g. back
   // button + quantity edit).
-  const subtotalValue = subtotal();
+  // FG-PRICE-02: with a valid order quote every figure below is the
+  // backend's — the same numbers the order will be charged. Without one
+  // (network error, refusal) the summary falls back to the cart with no
+  // discount, which can only overstate the total, and says so.
+  const quote = quoteResult?.status === "ok" ? quoteResult.quote : null;
+  const quoteUnavailable = quoteResult?.status === "error";
+  const subtotalValue = quote ? quote.subTotal : subtotal();
+  const discountLines = quote ? quote.discountApplied : [];
   // DR-17: meaningful only while the backend tax quote is valid
   // (status "ok"). Any other status renders placeholders/an error state
   // and blocks submission below — never a zero-tax total.
   const taxReady = config.status === "ok";
-  const tax = Math.round(subtotalValue * config.taxRate);
-  const serviceCharge = Math.round(
-    subtotalValue * (config.serviceChargeRate ?? 0),
-  );
-  const total = subtotalValue + tax + serviceCharge;
+  const tax = quote ? quote.taxAmount : Math.round(subtotalValue * config.taxRate);
+  const serviceCharge = quote
+    ? quote.serviceChargeAmount
+    : Math.round(subtotalValue * (config.serviceChargeRate ?? 0));
+  const total = quote ? quote.totalPrice : subtotalValue + tax + serviceCharge;
 
   // DR-11: one guarded submission. Captures the cart snapshot the 409
   // indexes refer to; a PRICE_CHANGED mismatch opens the confirmation
@@ -486,6 +518,14 @@ const PaymentPage: React.FC = () => {
               Rp{subtotalValue.toLocaleString()}
             </span>
           </div>
+          {discountLines.map((line) => (
+            <div key={line.campaignId} className="flex justify-between text-sm">
+              <span className="text-green-600 dark:text-green-400">{line.name}</span>
+              <span className="text-green-600 dark:text-green-400">
+                −Rp{line.amount.toLocaleString()}
+              </span>
+            </div>
+          ))}
           <div className="flex justify-between text-sm">
             <span className="text-gray-500 dark:text-gray-400">
               Pajak ({taxReady ? `${Math.round(config.taxRate * 100)}%` : "…"})
@@ -518,6 +558,12 @@ const PaymentPage: React.FC = () => {
             {taxReady ? `Rp${total.toLocaleString()}` : "…"}
           </span>
         </div>
+        {quoteUnavailable && (
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Promo otomatis belum bisa dihitung sekarang. Total akhir dihitung
+            saat pesanan dibuat dan tidak akan lebih tinggi dari ini.
+          </p>
+        )}
       </div>
 
       {promos.length > 0 && (
@@ -526,11 +572,11 @@ const PaymentPage: React.FC = () => {
             🎁 Promo Berjalan
           </h3>
           <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-            Promo diproses oleh kasir saat pembayaran. Sebutkan kode promo
-            berikut ke kasir untuk mendapatkan penawaran.
+            Promo otomatis yang berlaku sudah dihitung di ringkasan di atas.
+            Untuk promo berkode, sebutkan kodenya ke kasir saat membayar.
           </p>
           <div className="space-y-2">
-            {promos.slice(0, 3).map((promo) => (
+            {promos.map((promo) => (
               <div
                 key={promo.id}
                 className="flex items-center justify-between gap-3 text-sm"

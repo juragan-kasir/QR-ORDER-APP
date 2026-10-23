@@ -154,6 +154,8 @@ export interface Order {
   customerName?: string;
   items: OrderItem[];
   subtotal: number;
+  // Campaign discount the backend applied (QR orders: automatic campaigns).
+  discount?: number;
   tax: number;
   serviceCharge: number;
   total: number;

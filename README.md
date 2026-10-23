@@ -6,7 +6,7 @@
 
 Customer-facing QR code ordering app for restaurants and food businesses. Scan QR code at table → browse menu → place order → track status in real-time.
 
-> **Checkpoint:** reconciled against `master` `a9ff7f4` on 2026-10-23. CI runs lint + 25 Vitest files + build; UI copy is Indonesian (no i18n framework yet).
+> **Checkpoint:** reconciled against `master` `a9ff7f4` on 2026-10-23. CI runs lint + 26 Vitest files + build; UI copy is Indonesian (no i18n framework yet).
 
 ## Tech Stack
 
