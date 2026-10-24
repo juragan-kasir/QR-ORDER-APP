@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useId } from 'react';
 import type { Product, Size, Spiciness } from '../types';
+import LengthCounter from './LengthCounter';
+import { FIELD_LIMITS, limitBorder } from '../utils/fieldLimits';
 
 interface CustomizationPanelProps {
   product: Product;
@@ -28,6 +30,7 @@ const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
   onOptionChoiceChange,
   onNotesChange,
 }) => {
+  const notesCounterId = useId();
   return (
     <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 space-y-6 border border-gray-50 dark:border-gray-700/50 shadow-sm">
       {product.sizes && product.sizes.length > 0 && (
@@ -142,9 +145,12 @@ const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
           value={notes}
           onChange={(e) => onNotesChange(e.target.value)}
           placeholder="Contoh: tanpa bawang, es sedikit, dll."
-          className="w-full p-4 border-2 border-gray-200 dark:border-gray-600 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 transition-colors"
+          maxLength={FIELD_LIMITS.DESCRIPTION}
+          aria-describedby={notesCounterId}
+          className={`w-full p-4 border-2 ${limitBorder(notes, FIELD_LIMITS.DESCRIPTION, 'border-gray-200 dark:border-gray-600 focus:ring-primary/30 focus:border-primary')} rounded-2xl text-sm focus:outline-none focus:ring-2 resize-none bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 transition-colors`}
           rows={3}
         />
+        <LengthCounter id={notesCounterId} length={notes.length} max={FIELD_LIMITS.DESCRIPTION} />
       </div>
     </div>
   );

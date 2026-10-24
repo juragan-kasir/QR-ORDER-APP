@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useId } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useProduct } from "../hooks/useProduct";
 import { useCartStore } from "../store/useCartStore";
@@ -14,6 +14,8 @@ import {
 import CustomizationPanel from "../components/CustomizationPanel";
 import { resolveDisplayPrice } from "../utils/resolveDisplayPrice";
 import Skeleton from "../components/Skeleton";
+import LengthCounter from "../components/LengthCounter";
+import { FIELD_LIMITS, limitBorder } from "../utils/fieldLimits";
 import type { Size, Spiciness, Review } from "../types";
 import { fetchProductReviews } from "../services/reviewService";
 import {
@@ -56,6 +58,8 @@ const ProductDetailPage: React.FC = () => {
   const [reviewName, setReviewName] = useState("");
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewComment, setReviewComment] = useState("");
+  const reviewNameCounterId = useId();
+  const reviewCommentCounterId = useId();
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [activeImage, setActiveImage] = useState(0);
@@ -667,7 +671,14 @@ const ProductDetailPage: React.FC = () => {
                   setReviewName(e.target.value);
                 }}
                 placeholder="Tulis namamu..."
-                className="w-full border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                maxLength={FIELD_LIMITS.PERSON_NAME}
+                aria-describedby={reviewNameCounterId}
+                className={`w-full border ${limitBorder(reviewName, FIELD_LIMITS.PERSON_NAME, "border-gray-200 dark:border-gray-700 focus:ring-primary/50")} rounded-xl p-3 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2`}
+              />
+              <LengthCounter
+                id={reviewNameCounterId}
+                length={reviewName.length}
+                max={FIELD_LIMITS.PERSON_NAME}
               />
             </div>
             <div>
@@ -698,8 +709,15 @@ const ProductDetailPage: React.FC = () => {
                 value={reviewComment}
                 onChange={(e) => setReviewComment(e.target.value)}
                 placeholder="Tulis pengalamanmu..."
-                className="w-full border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
+                maxLength={FIELD_LIMITS.DESCRIPTION}
+                aria-describedby={reviewCommentCounterId}
+                className={`w-full border ${limitBorder(reviewComment, FIELD_LIMITS.DESCRIPTION, "border-gray-200 dark:border-gray-700 focus:ring-primary/50")} rounded-xl p-3 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 resize-none`}
                 rows={3}
+              />
+              <LengthCounter
+                id={reviewCommentCounterId}
+                length={reviewComment.length}
+                max={FIELD_LIMITS.DESCRIPTION}
               />
             </div>
             <div className="flex gap-2">
