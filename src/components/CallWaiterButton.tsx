@@ -1,8 +1,10 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useId } from 'react';
 import { Headphones } from 'lucide-react';
 import { useOrderStore } from '../store/useOrderStore';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { useSearchParams } from 'react-router-dom';
+import LengthCounter from './LengthCounter';
+import { FIELD_LIMITS, limitBorder } from '../utils/fieldLimits';
 
 interface CallWaiterButtonProps {
   orderId?: string;
@@ -26,6 +28,7 @@ const CallWaiterButton: React.FC<CallWaiterButtonProps> = ({ orderId: orderIdPro
   const [showMenu, setShowMenu] = useState(false);
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
+  const notesCounterId = useId();
   const [lastRequest, setLastRequest] = useState<string | null>(null);
   const [requestError, setRequestError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -131,13 +134,18 @@ const CallWaiterButton: React.FC<CallWaiterButtonProps> = ({ orderId: orderIdPro
               </button>
             ))}
           </div>
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Catatan tambahan (opsional), mis. bawa 2 sendok"
-            rows={2}
-            className="w-full px-3 py-2.5 rounded-xl text-sm bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700 text-gray-700 dark:text-gray-300 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/40"
-          />
+          <div>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Catatan tambahan (opsional), mis. bawa 2 sendok"
+              rows={2}
+              maxLength={FIELD_LIMITS.DESCRIPTION}
+              aria-describedby={notesCounterId}
+              className={`w-full px-3 py-2.5 rounded-xl text-sm bg-gray-50 dark:bg-gray-700/50 border ${limitBorder(notes, FIELD_LIMITS.DESCRIPTION, 'border-gray-100 dark:border-gray-700 focus:ring-primary/40')} text-gray-700 dark:text-gray-300 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2`}
+            />
+            <LengthCounter id={notesCounterId} length={notes.length} max={FIELD_LIMITS.DESCRIPTION} />
+          </div>
           <button
             onClick={handleSubmit}
             disabled={!selectedType || submitting}

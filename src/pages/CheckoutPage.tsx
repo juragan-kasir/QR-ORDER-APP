@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useId } from "react";
 import { useCartStore } from "../store/useCartStore";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import CartSummary from "../components/CartSummary";
@@ -6,8 +6,11 @@ import BundleBadge from "../components/BundleBadge";
 import { ChevronLeft, ShoppingCart } from "lucide-react";
 import { useCheckoutStore } from "../store/useCheckoutStore";
 import { useStoreConfig } from "../hooks/useStoreConfig";
+import LengthCounter from "../components/LengthCounter";
+import { FIELD_LIMITS, limitBorder } from "../utils/fieldLimits";
 
 const CheckoutPage: React.FC = () => {
+  const nameCounterId = useId();
   const { items, subtotal } = useCartStore();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -108,7 +111,14 @@ const CheckoutPage: React.FC = () => {
             value={customerName}
             onChange={(e) => setCustomerName(e.target.value)}
             placeholder="Nama kamu"
-            className="w-full p-3.5 border-2 border-gray-200 dark:border-gray-600 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 transition-colors"
+            maxLength={FIELD_LIMITS.PERSON_NAME}
+            aria-describedby={nameCounterId}
+            className={`w-full p-3.5 border-2 ${limitBorder(customerName, FIELD_LIMITS.PERSON_NAME, "border-gray-200 dark:border-gray-600 focus:ring-primary/30 focus:border-primary")} rounded-2xl text-sm focus:outline-none focus:ring-2 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 transition-colors`}
+          />
+          <LengthCounter
+            id={nameCounterId}
+            length={customerName.length}
+            max={FIELD_LIMITS.PERSON_NAME}
           />
           {/* DR-16: free text never unlocks member benefits — the name is
               only a table label for the staff. Staff attach a verified
