@@ -43,6 +43,10 @@ interface BackendProduct {
   // F4-03: fulfillment strategy — 'stocked' (default) | 'make_to_order' |
   // 'hybrid'. Absent on older backends (defaults to 'stocked').
   inventoryMode?: string | null;
+  // BRD BR-05: portions the outlet recipe can make from ingredient stock
+  // (0 without an active recipe); null for a stocked product. Absent on
+  // older backends.
+  availablePortions?: number | null;
   isBestSeller?: boolean;
   isPromo?: boolean;
   isVegetarian?: boolean;
@@ -208,16 +212,19 @@ export const isMadeToOrder = (bp: Pick<BackendProduct, "inventoryMode">): boolea
 
 // F4-03: customer-facing availability must reflect the backend's authoritative
 // per-store effective stock (a present store row wins — including an explicit
-// 0 — otherwise base product.stock), NOT the raw/global product.stock. The one
-// exception mirrors backend order validation (BE-POS-App order.js): a
-// make_to_order product's finished-good stock is not authoritative (its
-// recipe ingredients are checked and deducted by the backend), so its own
-// stock — usually 0 for a dish made per order — must NEVER render it
-// unavailable or cap the cart. Only isAvailable switches it off.
+// 0 — otherwise base product.stock), NOT the raw/global product.stock. A
+// make_to_order product's own stock is not authoritative: its availability
+// is the portions its recipe can make (BRD BR-05, `availablePortions`), so
+// it shows "Habis" only when the ingredients run out and the cart is capped
+// at what they make. A hybrid product is limited by both. An older backend
+// without `availablePortions` keeps the old "never Habis" behavior.
 function computeCustomerStock(bp: BackendProduct): number {
   if (!bp.isAvailable) return 0;
-  if (isMadeToOrder(bp)) return UNLIMITED_PRODUCT_STOCK;
-  return bp.effectiveStock ?? bp.stock;
+  const portions =
+    typeof bp.availablePortions === "number" ? Math.max(bp.availablePortions, 0) : null;
+  if (isMadeToOrder(bp)) return portions ?? UNLIMITED_PRODUCT_STOCK;
+  const own = bp.effectiveStock ?? bp.stock;
+  return portions == null ? own : Math.min(own, portions);
 }
 
 export function mapBackendProductToFrontend(
@@ -340,6 +347,12 @@ async function fetchCustomerMenuFromApi(
     }
     throw new ApiError("Gagal memuat menu. Coba lagi nanti.", 0);
   }
+}
+
+// Drops the cached menu of a store so the next read is fresh — e.g. after
+// the backend refused an order because an ingredient ran out.
+export function invalidateCustomerMenu(storeId: string): void {
+  customerMenuCache.delete(storeId);
 }
 
 export async function fetchCustomerMenu(

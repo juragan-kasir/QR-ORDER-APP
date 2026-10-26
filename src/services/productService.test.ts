@@ -128,3 +128,38 @@ describe("mapBackendProductToFrontend — make_to_order availability", () => {
     expect(product.stock).toBe(3);
   });
 });
+
+describe("mapBackendProductToFrontend — recipe portions (BRD BR-05)", () => {
+  test("a make_to_order dish offers exactly the portions its ingredients make", () => {
+    const product = mapBackendProductToFrontend(
+      backendProductLike({ inventoryMode: "make_to_order", stock: 0, availablePortions: 10 }),
+      "1",
+    );
+    expect(product.stock).toBe(10);
+    expect(product.madeToOrder).toBe(true);
+  });
+
+  test("a make_to_order dish whose ingredients ran out shows Habis", () => {
+    const product = mapBackendProductToFrontend(
+      backendProductLike({ inventoryMode: "make_to_order", stock: 0, availablePortions: 0 }),
+      "1",
+    );
+    expect(product.stock).toBe(0);
+  });
+
+  test("a hybrid product is limited by its stock and its portions", () => {
+    const product = mapBackendProductToFrontend(
+      backendProductLike({ inventoryMode: "hybrid", stock: 10, effectiveStock: 8, availablePortions: 3 }),
+      "1",
+    );
+    expect(product.stock).toBe(3);
+  });
+
+  test("a stocked product ignores a null availablePortions", () => {
+    const product = mapBackendProductToFrontend(
+      backendProductLike({ inventoryMode: "stocked", stock: 10, effectiveStock: 4, availablePortions: null }),
+      "1",
+    );
+    expect(product.stock).toBe(4);
+  });
+});
