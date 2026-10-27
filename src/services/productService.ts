@@ -1,5 +1,13 @@
 import apiClient, { ApiError } from "./apiClient";
-import type { Product, Category, AddOn, Review, Bundle, PromoCampaign, ProductOptionGroup } from "../types";
+import type {
+  Product,
+  Category,
+  AddOn,
+  Review,
+  Bundle,
+  PromoCampaign,
+  ProductOptionGroup,
+} from "../types";
 
 interface CustomerMenuResponse {
   message: string;
@@ -147,17 +155,26 @@ function mapBackendOptionsToFrontend(options: unknown[]): string[] {
 // for this input since none of its entries have a `value` key, so both can
 // coexist without conflict. Malformed groups/choices (missing a name) are
 // skipped rather than accepted as-is.
-function mapBackendOptionGroupsToFrontend(options: unknown[]): ProductOptionGroup[] {
+function mapBackendOptionGroupsToFrontend(
+  options: unknown[],
+): ProductOptionGroup[] {
   if (!Array.isArray(options)) return [];
   const groups: ProductOptionGroup[] = [];
   options.forEach((entry, groupIdx) => {
     if (typeof entry !== "object" || entry === null) return;
-    const group = entry as { id?: string | number; name?: string; options?: unknown };
+    const group = entry as {
+      id?: string | number;
+      name?: string;
+      options?: unknown;
+    };
     if (!group.name || !Array.isArray(group.options)) return;
     const choices = group.options
       .filter(
         (choice): choice is { name: string; price?: number } =>
-          typeof choice === "object" && choice !== null && "name" in choice && !!choice.name,
+          typeof choice === "object" &&
+          choice !== null &&
+          "name" in choice &&
+          !!choice.name,
       )
       .map((choice) => ({
         name: choice.name,
@@ -190,7 +207,10 @@ function mapBackendModifiersToFrontend(modifiers: unknown[]): AddOn[] {
     }));
 }
 
-function mapBackendReviewToFrontend(br: BackendReview, productId: string): Review {
+function mapBackendReviewToFrontend(
+  br: BackendReview,
+  productId: string,
+): Review {
   return {
     id: String(br.id),
     userId: "",
@@ -207,8 +227,13 @@ function mapBackendReviewToFrontend(br: BackendReview, productId: string): Revie
 // stock — the same sentinel bundles use (utils/bundleToProduct).
 export const UNLIMITED_PRODUCT_STOCK = 999;
 
-export const isMadeToOrder = (bp: Pick<BackendProduct, "inventoryMode">): boolean =>
-  (bp.inventoryMode ?? "stocked") === "make_to_order";
+export const isMadeToOrder = (
+  bp: Pick<BackendProduct, "inventoryMode">,
+): boolean => (bp.inventoryMode ?? "stocked") === "make_to_order";
+
+export const isInventoryItem = (
+  bp: Pick<BackendProduct, "inventoryMode">,
+): boolean => bp.inventoryMode === "inventory_item";
 
 // F4-03: customer-facing availability must reflect the backend's authoritative
 // per-store effective stock (a present store row wins — including an explicit
@@ -217,12 +242,18 @@ export const isMadeToOrder = (bp: Pick<BackendProduct, "inventoryMode">): boolea
 // is the portions its recipe can make (BRD BR-05, `availablePortions`), so
 // it shows "Habis" only when the ingredients run out and the cart is capped
 // at what they make. A hybrid product is limited by both. An older backend
-// without `availablePortions` keeps the old "never Habis" behavior.
+// without `availablePortions` keeps the old "never Habis" behavior. A
+// finished good linked to an inventory item (BRD BR-02, "inventory_item")
+// is limited by what its item can sell — shown as stock, not as a dish.
 function computeCustomerStock(bp: BackendProduct): number {
   if (!bp.isAvailable) return 0;
   const portions =
-    typeof bp.availablePortions === "number" ? Math.max(bp.availablePortions, 0) : null;
+    typeof bp.availablePortions === "number"
+      ? Math.max(bp.availablePortions, 0)
+      : null;
   if (isMadeToOrder(bp)) return portions ?? UNLIMITED_PRODUCT_STOCK;
+  if (isInventoryItem(bp))
+    return portions ?? Math.max(bp.effectiveStock ?? 0, 0);
   const own = bp.effectiveStock ?? bp.stock;
   return portions == null ? own : Math.min(own, portions);
 }
@@ -249,12 +280,7 @@ export function mapBackendProductToFrontend(
     // DR-11: carried verbatim (null when unpinned/absent) — display
     // resolution happens in resolveDisplayPrice, never here.
     effectivePrice: bp.effectivePrice ?? null,
-    images:
-      bp.images?.length
-        ? bp.images
-        : bp.image
-          ? [bp.image]
-          : [],
+    images: bp.images?.length ? bp.images : bp.image ? [bp.image] : [],
     image:
       bp.images?.[0] ||
       bp.image ||
@@ -262,7 +288,9 @@ export function mapBackendProductToFrontend(
     category: mapCategoryName(categoryName),
     rating: bp.averageRating ?? 0,
     reviewsCount: bp.totalReviews ?? bp.reviews?.length ?? 0,
-    reviews: bp.reviews?.map((r) => mapBackendReviewToFrontend(r, String(bp.id))),
+    reviews: bp.reviews?.map((r) =>
+      mapBackendReviewToFrontend(r, String(bp.id)),
+    ),
     isBestSeller: !!bp.isBestSeller,
     isPromo: !!bp.isPromo,
     isVegetarian: !!bp.isVegetarian,
@@ -381,9 +409,7 @@ export async function fetchProductById(
   try {
     if (!storeId) return null;
     const { products } = await fetchCustomerMenu(storeId);
-    return (
-      products.find((p) => String(p.id) === String(productId)) ?? null
-    );
+    return products.find((p) => String(p.id) === String(productId)) ?? null;
   } catch {
     return null;
   }
@@ -545,7 +571,9 @@ interface CustomerPromoResponse {
   }>;
 }
 
-function mapBackendPromoToFrontend(bp: CustomerPromoResponse["data"][number]): PromoCampaign {
+function mapBackendPromoToFrontend(
+  bp: CustomerPromoResponse["data"][number],
+): PromoCampaign {
   return {
     id: String(bp.id),
     name: bp.name,
