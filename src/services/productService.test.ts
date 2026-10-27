@@ -96,7 +96,11 @@ describe("mapBackendProductToFrontend — effectivePrice (DR-11)", () => {
 describe("mapBackendProductToFrontend — make_to_order availability", () => {
   test("a recipe (make_to_order) dish with zero product stock stays orderable", () => {
     const product = mapBackendProductToFrontend(
-      backendProductLike({ inventoryMode: "make_to_order", stock: 0, effectiveStock: 0 }),
+      backendProductLike({
+        inventoryMode: "make_to_order",
+        stock: 0,
+        effectiveStock: 0,
+      }),
       "1",
     );
     expect(product.stock).toBeGreaterThan(0);
@@ -105,7 +109,11 @@ describe("mapBackendProductToFrontend — make_to_order availability", () => {
 
   test("a switched-off make_to_order dish is still unavailable", () => {
     const product = mapBackendProductToFrontend(
-      backendProductLike({ inventoryMode: "make_to_order", stock: 0, isAvailable: false }),
+      backendProductLike({
+        inventoryMode: "make_to_order",
+        stock: 0,
+        isAvailable: false,
+      }),
       "1",
     );
     expect(product.stock).toBe(0);
@@ -113,7 +121,11 @@ describe("mapBackendProductToFrontend — make_to_order availability", () => {
 
   test("a stocked product keeps the effective per-store stock, including 0", () => {
     const product = mapBackendProductToFrontend(
-      backendProductLike({ inventoryMode: "stocked", stock: 10, effectiveStock: 0 }),
+      backendProductLike({
+        inventoryMode: "stocked",
+        stock: 10,
+        effectiveStock: 0,
+      }),
       "1",
     );
     expect(product.stock).toBe(0);
@@ -122,7 +134,11 @@ describe("mapBackendProductToFrontend — make_to_order availability", () => {
 
   test("a hybrid product is still limited by its effective stock", () => {
     const product = mapBackendProductToFrontend(
-      backendProductLike({ inventoryMode: "hybrid", stock: 10, effectiveStock: 3 }),
+      backendProductLike({
+        inventoryMode: "hybrid",
+        stock: 10,
+        effectiveStock: 3,
+      }),
       "1",
     );
     expect(product.stock).toBe(3);
@@ -132,7 +148,11 @@ describe("mapBackendProductToFrontend — make_to_order availability", () => {
 describe("mapBackendProductToFrontend — recipe portions (BRD BR-05)", () => {
   test("a make_to_order dish offers exactly the portions its ingredients make", () => {
     const product = mapBackendProductToFrontend(
-      backendProductLike({ inventoryMode: "make_to_order", stock: 0, availablePortions: 10 }),
+      backendProductLike({
+        inventoryMode: "make_to_order",
+        stock: 0,
+        availablePortions: 10,
+      }),
       "1",
     );
     expect(product.stock).toBe(10);
@@ -141,7 +161,11 @@ describe("mapBackendProductToFrontend — recipe portions (BRD BR-05)", () => {
 
   test("a make_to_order dish whose ingredients ran out shows Habis", () => {
     const product = mapBackendProductToFrontend(
-      backendProductLike({ inventoryMode: "make_to_order", stock: 0, availablePortions: 0 }),
+      backendProductLike({
+        inventoryMode: "make_to_order",
+        stock: 0,
+        availablePortions: 0,
+      }),
       "1",
     );
     expect(product.stock).toBe(0);
@@ -149,7 +173,12 @@ describe("mapBackendProductToFrontend — recipe portions (BRD BR-05)", () => {
 
   test("a hybrid product is limited by its stock and its portions", () => {
     const product = mapBackendProductToFrontend(
-      backendProductLike({ inventoryMode: "hybrid", stock: 10, effectiveStock: 8, availablePortions: 3 }),
+      backendProductLike({
+        inventoryMode: "hybrid",
+        stock: 10,
+        effectiveStock: 8,
+        availablePortions: 3,
+      }),
       "1",
     );
     expect(product.stock).toBe(3);
@@ -157,9 +186,63 @@ describe("mapBackendProductToFrontend — recipe portions (BRD BR-05)", () => {
 
   test("a stocked product ignores a null availablePortions", () => {
     const product = mapBackendProductToFrontend(
-      backendProductLike({ inventoryMode: "stocked", stock: 10, effectiveStock: 4, availablePortions: null }),
+      backendProductLike({
+        inventoryMode: "stocked",
+        stock: 10,
+        effectiveStock: 4,
+        availablePortions: null,
+      }),
       "1",
     );
     expect(product.stock).toBe(4);
+  });
+});
+
+describe("mapBackendProductToFrontend — inventory item (BRD BR-02)", () => {
+  test("a finished good linked to an inventory item offers what the item can sell", () => {
+    const product = mapBackendProductToFrontend(
+      backendProductLike({
+        inventoryMode: "inventory_item",
+        stock: 0,
+        effectiveStock: 4,
+        availablePortions: 4,
+      }),
+      "1",
+    );
+    expect(product.stock).toBe(4);
+    expect(product.madeToOrder).toBe(false);
+  });
+
+  test("an empty item shows Habis", () => {
+    const product = mapBackendProductToFrontend(
+      backendProductLike({
+        inventoryMode: "inventory_item",
+        stock: 8,
+        effectiveStock: 0,
+        availablePortions: 0,
+      }),
+      "1",
+    );
+    expect(product.stock).toBe(0);
+  });
+
+  test("its own product stock is never used", () => {
+    const product = mapBackendProductToFrontend(
+      backendProductLike({ inventoryMode: "inventory_item", stock: 8 }),
+      "1",
+    );
+    expect(product.stock).toBe(0);
+  });
+
+  test("switched off is unavailable", () => {
+    const product = mapBackendProductToFrontend(
+      backendProductLike({
+        inventoryMode: "inventory_item",
+        availablePortions: 4,
+        isAvailable: false,
+      }),
+      "1",
+    );
+    expect(product.stock).toBe(0);
   });
 });
