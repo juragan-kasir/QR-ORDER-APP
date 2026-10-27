@@ -22,6 +22,7 @@ import {
 } from "../utils/priceChange";
 import PriceChangeDialog from "../components/PriceChangeDialog";
 import { ApiError } from "../services/apiClient";
+import { invalidateCustomerMenu } from "../services/productService";
 import { bareTableDesignator } from "../utils/tableDisplay";
 import { cartSignature, getAttemptKey, clearAttemptKey } from "../utils/attemptKey";
 import { getDinerSession } from "../utils/dinerSession";
@@ -302,6 +303,20 @@ const PaymentPage: React.FC = () => {
           setPriceConflict({ snapshot, submitted, changes });
           return false;
         }
+      }
+      // BRD BR-06: the ingredients cannot make this order (or a menu has no
+      // active recipe). The server message names the menus; the cached menu
+      // is dropped so going back shows the current portions.
+      if (
+        err instanceof ApiError &&
+        err.status === 409 &&
+        (err.code === "INGREDIENT_STOCK_CONFLICT" || err.code === "RECIPE_UNAVAILABLE")
+      ) {
+        if (store) invalidateCustomerMenu(store);
+        setPaymentError(
+          `${err.message}. Kurangi jumlah atau ganti menu, lalu coba lagi.`,
+        );
+        return false;
       }
       // DR-09: a table-occupied refusal must explain the one-open-order
       // rule, never surface an opaque backend error.
