@@ -284,39 +284,6 @@ export async function createCustomerOrder(
   }
 }
 
-// E2E audit #8 open bill (BE batch B9): the diner adds a round to their own
-// unpaid order, found by its opaque publicToken. The backend answers with
-// the updated bill only.
-export interface AddRoundBill {
-  orderNumber: string;
-  status: string;
-  paymentStatus: string;
-  subTotal: number;
-  discountAmount: number;
-  taxAmount: number;
-  serviceChargeAmount: number;
-  totalPrice: number;
-  totalQuantity: number;
-}
-
-export async function addCustomerOrderItems(
-  publicToken: string,
-  payload: { items: OrderItemPayload[]; idempotencyKey: string },
-): Promise<AddRoundBill> {
-  try {
-    const { data } = await apiClient.post<{ message: string; data: AddRoundBill }>(
-      `/order/customer-order/${publicToken}/items`,
-      payload,
-    );
-    return data.data;
-  } catch (err) {
-    if (err instanceof ApiError) {
-      throw err;
-    }
-    throw new ApiError("Gagal menambah pesanan. Coba lagi.", 0);
-  }
-}
-
 export async function fetchCustomerOrder(
   publicToken: string,
 ): Promise<Order | null> {

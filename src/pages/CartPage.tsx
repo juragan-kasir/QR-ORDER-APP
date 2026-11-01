@@ -7,21 +7,12 @@ import Skeleton from "../components/Skeleton";
 import BundleBadge from "../components/BundleBadge";
 import { useDialogA11y } from "../hooks/useDialogA11y";
 import { useStoreConfig } from "../hooks/useStoreConfig";
-import { useOrderStore } from "../store/useOrderStore";
-import AddRoundCta from "../components/AddRoundCta";
 
 const CartPage: React.FC = () => {
   const { items, removeItem, updateQuantity, clearCart } = useCartStore();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { config } = useStoreConfig(searchParams.get("store"));
-  const addRoundTarget = useOrderStore((state) => state.addRoundTarget);
-  const activeRound =
-    addRoundTarget &&
-    addRoundTarget.storeId === searchParams.get("store") &&
-    addRoundTarget.tableId === searchParams.get("table")
-      ? addRoundTarget
-      : null;
   const [loading, setLoading] = useState(true);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const closeClearConfirm = () => setShowClearConfirm(false);
@@ -258,16 +249,12 @@ const CartPage: React.FC = () => {
           normal in-flow button on desktop (md:), where there is no bottom
           nav and the page is short enough not to need this. */}
       <div className="fixed inset-x-0 bottom-[64px] z-40 bg-secondary/95 dark:bg-gray-900/95 backdrop-blur-lg border-t border-gray-100 dark:border-gray-700/50 px-4 py-3 md:static md:inset-auto md:z-auto md:bg-transparent md:dark:bg-transparent md:backdrop-blur-none md:border-0 md:px-0 md:py-0">
-        {activeRound ? (
-          <AddRoundCta target={activeRound} onDone={() => navigate(href("/orders"))} />
-        ) : (
-          <button
-            onClick={() => navigate(href("/checkout"))}
-            className="w-full bg-primary text-white py-4 rounded-2xl font-bold tap-scale shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-shadow"
-          >
-            Lanjut ke Checkout
-          </button>
-        )}
+        <button
+          onClick={() => navigate(href("/checkout"))}
+          className="w-full bg-primary text-white py-4 rounded-2xl font-bold tap-scale shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-shadow"
+        >
+          Lanjut ke Checkout
+        </button>
       </div>
     </div>
   );
