@@ -33,6 +33,7 @@ const PaymentPage: React.FC = () => {
   const { items, clearCart, subtotal } = useCartStore();
   const { applyServerPrices } = useCartStore();
   const createOrder = useOrderStore((state) => state.createOrder);
+  const startAddRound = useOrderStore((state) => state.startAddRound);
   const { data: checkoutData, clearCheckoutData } = useCheckoutStore();
   const store = searchParams.get("store");
   const {
@@ -189,15 +190,31 @@ const PaymentPage: React.FC = () => {
           >
             Lihat Pesanan
           </button>
-          {/* Satu meja hanya boleh punya satu order aktif (BE menolak ronde
-              kedua dengan TABLE_OCCUPIED) — tawarkan "Pesan Lagi" hanya
-              setelah order ini lunas, jika tidak tampilkan penjelasannya. */}
+          {/* Satu meja hanya boleh punya satu order aktif (BE menolak order
+              kedua dengan TABLE_OCCUPIED). Selama order ini belum dibayar,
+              "Pesan Lagi" menambah ronde ke order yang sama (open bill,
+              BE batch B9); setelah lunas, mulai order baru. */}
           {confirmedOrder?.paymentStatus === "paid" ? (
             <button
               onClick={() => navigate(href("/"))}
               className="text-primary font-bold text-sm"
             >
               Pesan Lagi
+            </button>
+          ) : confirmedOrder?.publicToken ? (
+            <button
+              onClick={() => {
+                startAddRound({
+                  publicToken: confirmedOrder.publicToken as string,
+                  orderNumber: confirmedOrder.orderNumber || confirmedOrder.id,
+                  storeId: searchParams.get("store"),
+                  tableId: searchParams.get("table"),
+                });
+                navigate(href("/"));
+              }}
+              className="text-primary font-bold text-sm"
+            >
+              Pesan Lagi (tambah ke pesanan ini)
             </button>
           ) : (
             <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">
