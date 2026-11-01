@@ -7,7 +7,19 @@ import {
   fetchMyWaiterRequests,
 } from "../services/waiterService";
 
+// The unpaid order the diner is adding a round to ("Pesan Lagi"), bound to
+// the store/table it was placed at so another table's cart never joins it.
+export interface AddRoundTarget {
+  publicToken: string;
+  orderNumber: string;
+  storeId: string | null;
+  tableId: string | null;
+}
+
 interface OrderState {
+  addRoundTarget: AddRoundTarget | null;
+  startAddRound: (target: AddRoundTarget) => void;
+  clearAddRound: () => void;
   activeOrderId: string | null;
   // The store/table context activeOrderId was actually set for — lets
   // consumers (CallWaiterButton) refuse to attach a request to an order
@@ -57,6 +69,9 @@ interface OrderState {
 export const useOrderStore = create<OrderState>()(
   persist(
     (set, get) => ({
+      addRoundTarget: null,
+      startAddRound: (target) => set({ addRoundTarget: target }),
+      clearAddRound: () => set({ addRoundTarget: null }),
       activeOrderId: null,
       activeOrderStoreId: null,
       activeOrderTableId: null,
@@ -127,6 +142,7 @@ export const useOrderStore = create<OrderState>()(
     {
       name: "bisamakan-orders",
       partialize: (state) => ({
+        addRoundTarget: state.addRoundTarget,
         activeOrderId: state.activeOrderId,
         activeOrderStoreId: state.activeOrderStoreId,
         activeOrderTableId: state.activeOrderTableId,
