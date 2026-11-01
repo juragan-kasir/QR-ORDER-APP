@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import PaymentPage from "./PaymentPage";
 import { useCartStore } from "../store/useCartStore";
 import { useCheckoutStore } from "../store/useCheckoutStore";
+import { useOrderStore } from "../store/useOrderStore";
 import { createCustomerOrder } from "../services/orderService";
 import type { CartItem } from "../types";
 
@@ -99,5 +100,27 @@ describe("PaymentPage second-round trap", () => {
 
     await waitFor(() => expect(screen.queryByText("Pesanan Berhasil!")).toBeInTheDocument());
     expect(screen.getByRole("button", { name: /pesan lagi/i })).toBeInTheDocument();
+  });
+
+  test("an unpaid order with its token offers adding a round to the same order", async () => {
+    useOrderStore.setState({ addRoundTarget: null });
+    renderPage();
+    mockedCreate.mockResolvedValueOnce({
+      ...baseOrder,
+      paymentStatus: "unpaid",
+      publicToken: "tok-9",
+    });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: /bayar sekarang|buat pesanan/i }));
+
+    await user.click(
+      await screen.findByRole("button", { name: /pesan lagi \(tambah ke pesanan ini\)/i }),
+    );
+    expect(useOrderStore.getState().addRoundTarget).toEqual({
+      publicToken: "tok-9",
+      orderNumber: "CUST-9",
+      storeId: "1",
+      tableId: "2",
+    });
   });
 });
