@@ -75,9 +75,7 @@ const ProductDetailPage: React.FC = () => {
   const galleryImages =
     product && product.images.length > 0
       ? product.images
-      : product
-        ? [product.image]
-        : [];
+      : [];
   const safeIndex = Math.min(activeImage, galleryImages.length - 1);
 
   const scrollToIndex = (i: number) => {
