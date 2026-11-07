@@ -6,6 +6,8 @@ import BundleBadge from "../components/BundleBadge";
 import { ChevronLeft, ShoppingCart } from "lucide-react";
 import { useCheckoutStore } from "../store/useCheckoutStore";
 import { useStoreConfig } from "../hooks/useStoreConfig";
+import { useTableLabel } from "../hooks/useTableLabel";
+import { bareTableDesignator } from "../utils/tableDisplay";
 import LengthCounter from "../components/LengthCounter";
 import { FIELD_LIMITS, limitBorder } from "../utils/fieldLimits";
 
@@ -15,7 +17,8 @@ const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { setCheckoutData } = useCheckoutStore();
-  const { config, error: configError } = useStoreConfig(searchParams.get("store"));
+  const store = searchParams.get("store");
+  const { config, error: configError } = useStoreConfig(store);
 
   const href = (path: string) => {
     const sep = path.includes("?") ? "&" : "?";
@@ -25,6 +28,12 @@ const CheckoutPage: React.FC = () => {
   // customer-editable field — see Layout.tsx, which already refuses to
   // render this page at all unless `table` is present in the URL.
   const tableNumber = searchParams.get("table") || "";
+  const { label: tableLabel, loading: tableLabelLoading } = useTableLabel(
+    store,
+    tableNumber || null,
+  );
+  const displayTable =
+    bareTableDesignator(tableLabel) ?? (tableLabelLoading ? null : "-");
   const [customerName, setCustomerName] = useState("");
 
   if (items.length === 0) {
@@ -91,7 +100,7 @@ const CheckoutPage: React.FC = () => {
           </label>
           <div className="flex items-center gap-2">
             <span className="bg-primary/10 text-primary px-4 py-2.5 rounded-2xl text-sm font-bold">
-              Meja {tableNumber || "-"}
+              Meja {displayTable ?? "…"}
             </span>
             <span className="text-xs text-gray-400 dark:text-gray-500">
               Sesuai QR yang kamu scan

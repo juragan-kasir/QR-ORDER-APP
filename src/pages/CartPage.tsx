@@ -7,6 +7,8 @@ import Skeleton from "../components/Skeleton";
 import BundleBadge from "../components/BundleBadge";
 import { useDialogA11y } from "../hooks/useDialogA11y";
 import { useStoreConfig } from "../hooks/useStoreConfig";
+import { useTableLabel } from "../hooks/useTableLabel";
+import { bareTableDesignator } from "../utils/tableDisplay";
 import { useOrderStore } from "../store/useOrderStore";
 import AddRoundCta from "../components/AddRoundCta";
 
@@ -14,7 +16,12 @@ const CartPage: React.FC = () => {
   const { items, removeItem, updateQuantity, clearCart } = useCartStore();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { config } = useStoreConfig(searchParams.get("store"));
+  const table = searchParams.get("table");
+  const store = searchParams.get("store");
+  const { config } = useStoreConfig(store);
+  const { label: tableLabel, loading: tableLabelLoading } = useTableLabel(store, table);
+  const displayTable =
+    bareTableDesignator(tableLabel) ?? (tableLabelLoading ? null : "-");
   const addRoundTarget = useOrderStore((state) => state.addRoundTarget);
   const activeRound =
     addRoundTarget &&
@@ -150,9 +157,9 @@ const CartPage: React.FC = () => {
       )}
 
       <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-        {searchParams.get("table") && (
+        {table && (
           <span className="bg-primary/10 text-primary px-3 py-1.5 rounded-full font-medium">
-            Meja {searchParams.get("table")}
+            Meja {displayTable ?? "…"}
           </span>
         )}
         {searchParams.get("store") && (

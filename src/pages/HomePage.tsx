@@ -4,6 +4,8 @@ import { useProducts } from "../hooks/useProducts";
 import { useBundles } from "../hooks/useBundles";
 import { usePromos } from "../hooks/usePromos";
 import { useStoreConfig } from "../hooks/useStoreConfig";
+import { useTableLabel } from "../hooks/useTableLabel";
+import { bareTableDesignator } from "../utils/tableDisplay";
 import SearchBar from "../components/SearchBar";
 import MenuCard from "../components/MenuCard";
 import BundleCard from "../components/BundleCard";
@@ -21,6 +23,9 @@ const HomePage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const table = searchParams.get("table");
   const store = searchParams.get("store");
+  const { label: tableLabel, loading: tableLabelLoading } = useTableLabel(store, table);
+  const displayTable =
+    bareTableDesignator(tableLabel) ?? (tableLabelLoading ? null : "-");
 
   const { products, categories, loading, error, refetch } = useProducts(store);
   const { bundles } = useBundles(store);
@@ -108,7 +113,7 @@ const HomePage: React.FC = () => {
         <div className="flex items-center gap-2">
           {table && (
             <span className="bg-primary/10 text-primary px-3 py-1.5 rounded-full text-xs font-bold">
-              Meja {table}
+              Meja {displayTable ?? "…"}
             </span>
           )}
           {config.storeName && (
