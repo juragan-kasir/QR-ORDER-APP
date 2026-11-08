@@ -242,3 +242,52 @@ describe("useCartStore.applyServerPrices — same-product siblings (F1)", () => 
     expect(second.basePrice).toBe(22000);
   });
 });
+
+describe("useCartStore — retail R1 grosir breaks", () => {
+  const breaks = [
+    { minQty: 12, price: 9000 },
+    { minQty: 48, price: 8500 },
+  ];
+  const grosir = () =>
+    productLike({ price: 10000, effectivePrice: 10000, stock: 100, quantityBreaks: breaks });
+
+  test("the unit price follows the break as the quantity changes", () => {
+    useCartStore.getState().addItem(grosir());
+    useCartStore.getState().updateQuantity("1", 12);
+    let [line] = useCartStore.getState().items;
+    expect(line.price).toBe(9000);
+    expect(line.totalPrice).toBe(108000);
+    useCartStore.getState().updateQuantity("1", 50);
+    [line] = useCartStore.getState().items;
+    expect(line.price).toBe(8500);
+    useCartStore.getState().updateQuantity("1", 11);
+    [line] = useCartStore.getState().items;
+    expect(line.price).toBe(10000);
+    expect(line.totalPrice).toBe(110000);
+  });
+
+  test("adding the same item again also re-prices, with markup on top", () => {
+    const custom = { addOns: [{ id: "a1", name: "Plastik", price: 500 }] };
+    for (let i = 0; i < 12; i++) useCartStore.getState().addItem(grosir(), custom);
+    const [line] = useCartStore.getState().items;
+    expect(line.quantity).toBe(12);
+    expect(line.price).toBe(9500);
+  });
+
+  test("a server-confirmed price stops local re-pricing", () => {
+    useCartStore.getState().addItem(grosir());
+    useCartStore.getState().applyServerPrices([{ index: 0, price: 9900 }]);
+    useCartStore.getState().updateQuantity("1", 12);
+    const [line] = useCartStore.getState().items;
+    expect(line.price).toBe(9900);
+  });
+
+  test("a product without breaks keeps the plain behaviour", () => {
+    useCartStore.getState().addItem(productLike({ price: 10000 }));
+    useCartStore.getState().updateQuantity("1", 3);
+    const [line] = useCartStore.getState().items;
+    expect(line.price).toBe(10000);
+    expect(line.totalPrice).toBe(30000);
+    expect(line.quantityBreaks).toBeUndefined();
+  });
+});

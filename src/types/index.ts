@@ -62,6 +62,9 @@ export interface Product {
   // DR-11: backend-resolved outlet price (customer-menu `effectivePrice`).
   // Null when no store is pinned or on older backends; 0 is a valid price.
   effectivePrice?: number | null;
+  // Retail R1: grosir breaks from the customer menu — from minQty units the
+  // server charges that unit price instead of the catalog price.
+  quantityBreaks?: QuantityBreak[];
   image: string;
   images: string[];
   category: Category;
@@ -106,11 +109,20 @@ export interface CartItemCustomization {
   notes?: string;
 }
 
+export interface QuantityBreak {
+  minQty: number;
+  price: number;
+}
+
 export interface CartItem {
   id: string;
   name: string;
   description: string;
   basePrice: number;
+  // Retail R1: the catalog base before any grosir break, and the breaks;
+  // basePrice is the break price while one applies.
+  listBasePrice?: number;
+  quantityBreaks?: QuantityBreak[];
   price: number;
   image: string;
   category: Category;
