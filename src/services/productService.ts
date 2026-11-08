@@ -32,6 +32,8 @@ interface BackendProduct {
   // outlet row wins, otherwise base price). Null when no valid store is
   // pinned. Absent on older backends.
   effectivePrice?: number | null;
+  // Retail R1: grosir breaks [{ minQty, price }]; absent on older backends.
+  quantityBreaks?: { minQty: number; price: number }[];
   costPrice: number;
   isOption: boolean;
   options: unknown[];
@@ -280,6 +282,7 @@ export function mapBackendProductToFrontend(
     // DR-11: carried verbatim (null when unpinned/absent) — display
     // resolution happens in resolveDisplayPrice, never here.
     effectivePrice: bp.effectivePrice ?? null,
+    quantityBreaks: Array.isArray(bp.quantityBreaks) ? bp.quantityBreaks : [],
     images: bp.images?.length ? bp.images : bp.image ? [bp.image] : [],
     image:
       bp.images?.[0] ||

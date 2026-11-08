@@ -49,6 +49,31 @@ function calcUnitPrice(
   return basePrice + calcMarkupTotal(customization);
 }
 
+// Retail R1: the base the server charges for this quantity — the highest
+// grosir break whose minQty the quantity reaches, else the catalog base.
+// Markups stay on top, as the server prices them.
+function baseForQuantity(item: CartItem, quantity: number): number {
+  const list = item.listBasePrice ?? item.basePrice;
+  let base = list;
+  let best = 0;
+  for (const tier of item.quantityBreaks || []) {
+    if (tier.minQty <= quantity && tier.minQty > best) {
+      best = tier.minQty;
+      base = tier.price;
+    }
+  }
+  return base;
+}
+
+function withQuantity(item: CartItem, quantity: number): CartItem {
+  if (!item.quantityBreaks?.length) {
+    return { ...item, quantity, totalPrice: item.price * quantity };
+  }
+  const basePrice = baseForQuantity(item, quantity);
+  const price = calcUnitPrice(basePrice, item.customization);
+  return { ...item, quantity, basePrice, price, totalPrice: price * quantity };
+}
+
 export const useCartStore = create<CartState>()(
   persist(
     (set, get) => ({
@@ -81,7 +106,9 @@ export const useCartStore = create<CartState>()(
               item.id === product.id &&
               JSON.stringify(item.customization) ===
                 JSON.stringify(customization)
-                ? { ...item, quantity: newQty, totalPrice: unitPrice * newQty }
+                ? item.quantityBreaks?.length
+                  ? withQuantity(item, newQty)
+                  : { ...item, quantity: newQty, totalPrice: unitPrice * newQty }
                 : item,
             ),
           });
@@ -103,6 +130,9 @@ export const useCartStore = create<CartState>()(
                 bundleId: product.bundleId,
                 bundleItems: product.bundleItems,
                 stock: product.stock,
+                ...(!product.bundleId && product.quantityBreaks?.length
+                  ? { listBasePrice: basePrice, quantityBreaks: product.quantityBreaks }
+                  : {}),
               },
             ],
           });
@@ -128,7 +158,7 @@ export const useCartStore = create<CartState>()(
                 ? Math.min(quantity, item.stock)
                 : quantity;
             if (capped <= 0) return item;
-            return { ...item, quantity: capped, totalPrice: item.price * capped };
+            return withQuantity(item, capped);
           }),
         });
       },
@@ -138,7 +168,9 @@ export const useCartStore = create<CartState>()(
             item.id === productId
               ? (() => {
                   const unitPrice = calcUnitPrice(
-                    item.basePrice,
+                    item.quantityBreaks?.length
+                      ? baseForQuantity(item, item.quantity)
+                      : item.basePrice,
                     customization,
                   );
                   return {
@@ -165,7 +197,15 @@ export const useCartStore = create<CartState>()(
             // confirmed − current markups. Later customization edits then
             // recalculate from the confirmed basis instead of a stale base.
             const basePrice = price - calcMarkupTotal(item.customization);
-            return { ...item, basePrice, price, totalPrice: price * item.quantity };
+            // The confirmed price is for this quantity; stop applying breaks.
+            return {
+              ...item,
+              basePrice,
+              price,
+              totalPrice: price * item.quantity,
+              listBasePrice: undefined,
+              quantityBreaks: undefined,
+            };
           }),
         });
       },
