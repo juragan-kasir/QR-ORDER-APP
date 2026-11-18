@@ -1,16 +1,34 @@
-import React, { useEffect } from "react";
+import React, { Suspense, useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 import Layout from "./components/Layout";
 import ErrorBoundary from "./components/ErrorBoundary";
 import HomePage from "./pages/HomePage";
-import CartPage from "./pages/CartPage";
-import OrdersPage from "./pages/OrdersPage";
-import ProductDetailPage from "./pages/ProductDetailPage";
-import CheckoutPage from "./pages/CheckoutPage";
-import PaymentPage from "./pages/PaymentPage";
-import WaiterPage from "./pages/WaiterPage";
-import OrderHistoryPage from "./pages/OrderHistoryPage";
-import NotFoundPage from "./pages/NotFoundPage";
+
+// Halaman menu (HomePage) dimuat langsung — layar pertama pelanggan setelah
+// scan QR. Halaman lain di-lazy supaya tidak membebani LCP/TBT menu, lalu
+// dipra-muat saat browser senggang agar pindah halaman tetap instan.
+const loadCart = () => import("./pages/CartPage");
+const loadCheckout = () => import("./pages/CheckoutPage");
+const loadPayment = () => import("./pages/PaymentPage");
+const loadProduct = () => import("./pages/ProductDetailPage");
+const CartPage = React.lazy(loadCart);
+const CheckoutPage = React.lazy(loadCheckout);
+const PaymentPage = React.lazy(loadPayment);
+const ProductDetailPage = React.lazy(loadProduct);
+const OrdersPage = React.lazy(() => import("./pages/OrdersPage"));
+const WaiterPage = React.lazy(() => import("./pages/WaiterPage"));
+const OrderHistoryPage = React.lazy(() => import("./pages/OrderHistoryPage"));
+const NotFoundPage = React.lazy(() => import("./pages/NotFoundPage"));
+
+// Ditunda 3 detik setelah load (di luar jendela LCP) lalu tunggu browser
+// senggang, supaya pra-muat tidak berebut bandwidth dengan halaman menu.
+const prefetchCustomerFlow = () => {
+  const run = () => void Promise.all([loadProduct(), loadCart(), loadCheckout(), loadPayment()]);
+  setTimeout(() => {
+    if ("requestIdleCallback" in window) window.requestIdleCallback(run, { timeout: 4000 });
+    else run();
+  }, 3000);
+};
 import { useThemeStore } from "./store/useThemeStore";
 
 const DetailProductRedirect: React.FC = () => {
@@ -29,9 +47,15 @@ const App: React.FC = () => {
     }
   }, [isDark]);
 
+  useEffect(() => {
+    if (document.readyState === "complete") prefetchCustomerFlow();
+    else window.addEventListener("load", prefetchCustomerFlow, { once: true });
+  }, []);
+
   return (
     <ErrorBoundary>
       <BrowserRouter>
+        <Suspense fallback={null}>
         <Routes>
           <Route path="/" element={<Layout />}>
             <Route index element={<HomePage />} />
@@ -46,6 +70,7 @@ const App: React.FC = () => {
             <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Routes>
+        </Suspense>
       </BrowserRouter>
     </ErrorBoundary>
   );

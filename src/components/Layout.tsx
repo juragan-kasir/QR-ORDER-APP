@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { Suspense, useEffect } from 'react';
 import { Outlet, Link, useLocation, useSearchParams } from 'react-router-dom';
 import { Home, ShoppingBag, ListOrdered, Headphones, User, AlertTriangle } from 'lucide-react';
 import { useCartStore } from '../store/useCartStore';
@@ -179,7 +179,10 @@ const Layout: React.FC = () => {
       </header>
 
       <main className="container mx-auto max-w-2xl px-4 pt-6 pb-24 md:pt-4 md:pb-6">
-        <Outlet />
+        {/* Halaman lazy: header & nav bawah tetap tampil selama chunk dimuat. */}
+        <Suspense fallback={<div className="min-h-[50vh]" aria-busy="true" />}>
+          <Outlet />
+        </Suspense>
       </main>
 
       {/* Mobile Bottom Navigation */}

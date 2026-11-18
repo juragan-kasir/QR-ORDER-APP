@@ -123,7 +123,7 @@ const BundleCard: React.FC<BundleCardProps> = ({ bundle }) => {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 onClick={() => setDetailOpen(false)}
-                className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-6"
+                className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 p-0 sm:p-6"
               >
                 <motion.div
                   key="bundle-preview-panel"
@@ -153,7 +153,7 @@ const BundleCard: React.FC<BundleCardProps> = ({ bundle }) => {
                       type="button"
                       onClick={() => setDetailOpen(false)}
                       aria-label="Tutup detail bundle"
-                      className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm flex items-center justify-center text-gray-700 dark:text-gray-200 shadow-sm hover:bg-white dark:hover:bg-gray-800 transition-colors"
+                      className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white dark:bg-gray-800 flex items-center justify-center text-gray-700 dark:text-gray-200 shadow-sm hover:bg-white dark:hover:bg-gray-800 transition-colors"
                     >
                       <X size={18} />
                     </button>

@@ -1,4 +1,5 @@
 import React from "react";
+import { getDynamicIcon, hasDynamicIcon } from "./dynamicIcons";
 
 interface CategoryIconProps {
   icon: string;
@@ -10,8 +11,9 @@ function isUrl(value: string): boolean {
   return /^(https?:|data:|\/)/.test(value);
 }
 
-function isMaterialSymbol(value: string): boolean {
-  return /^[a-z0-9_]+$/.test(value);
+// Nama ikon gaya Material Symbols dari picker kategori FE-POS (mis. "restaurant").
+function isIconName(value: string): boolean {
+  return /^[a-z0-9_]+$/.test(value) || hasDynamicIcon(value);
 }
 
 const CategoryIcon: React.FC<CategoryIconProps> = ({
@@ -32,15 +34,13 @@ const CategoryIcon: React.FC<CategoryIconProps> = ({
     );
   }
 
-  if (isMaterialSymbol(icon)) {
-    return (
-      <span
-        className={`material-symbols-outlined inline-flex items-center leading-none ${className}`}
-        style={{ fontSize: size, width: size, height: size }}
-      >
-        {icon}
-      </span>
-    );
+  if (isIconName(icon)) {
+    // Sama dengan FE-POS (DynamicIcon): lucide, bukan font Material Symbols.
+    return React.createElement(getDynamicIcon(icon), {
+      size,
+      "aria-hidden": true,
+      className: `inline-block shrink-0 ${className}`,
+    });
   }
 
   return <span className={className}>{icon}</span>;

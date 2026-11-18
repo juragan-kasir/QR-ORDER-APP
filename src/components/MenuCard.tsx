@@ -94,7 +94,7 @@ const MenuCard: React.FC<MenuCardProps> = ({ product }) => {
           type="button"
           onClick={openPreview}
           aria-label="Lihat detail"
-          className="absolute bottom-3 right-3 w-9 h-9 rounded-full bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border border-gray-100 dark:border-gray-700 text-gray-700 dark:text-gray-300 flex items-center justify-center shadow-sm hover:bg-white dark:hover:bg-gray-800 transition-colors"
+          className="absolute bottom-3 right-3 w-9 h-9 rounded-full bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 text-gray-700 dark:text-gray-300 flex items-center justify-center shadow-sm hover:bg-white dark:hover:bg-gray-800 transition-colors"
         >
           <Eye size={16} />
         </button>

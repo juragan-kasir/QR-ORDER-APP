@@ -2,6 +2,16 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Fallback bermetrik sama dengan Inter → teks tidak melompat saat font termuat (CLS). */
+@font-face {
+  font-family: "Inter Fallback";
+  src: local("Arial"), local("Helvetica Neue"), local("Helvetica");
+  ascent-override: 90.44%;
+  descent-override: 22.52%;
+  line-gap-override: 0%;
+  size-adjust: 107.12%;
+}
+
 @theme {
   --color-primary: #ff6b00;
   --color-primary-light: #ff9e5c;
@@ -10,7 +20,7 @@
   --color-surface: #ffffff;
   --color-destructive: #dc2626;
 
-  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-sans: "Inter", "Inter Fallback", system-ui, -apple-system, sans-serif;
   --font-display: "Poppins", var(--font-sans);
 
   --radius-2xl: 1.5rem;
@@ -74,27 +84,6 @@ h4 {
 
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
-}
-
-.material-symbols-outlined {
-  font-family: "Material Symbols Outlined";
-  font-weight: normal;
-  font-style: normal;
-  font-size: 24px;
-  line-height: 1;
-  letter-spacing: normal;
-  text-transform: none;
-  display: inline-block;
-  white-space: nowrap;
-  word-wrap: normal;
-  direction: ltr;
-  -webkit-font-smoothing: antialiased;
-  user-select: none;
-  font-variation-settings:
-    "FILL" 0,
-    "wght" 400,
-    "GRAD" 0,
-    "opsz" 24;
 }
 
 @keyframes shimmer {
