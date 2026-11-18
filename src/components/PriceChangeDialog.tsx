@@ -35,7 +35,7 @@ const PriceChangeDialog: React.FC<PriceChangeDialogProps> = ({
       role="dialog"
       aria-modal="true"
       aria-label="Konfirmasi perubahan harga"
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 p-4"
     >
       <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-3xl shadow-2xl p-6 space-y-4">
         <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">

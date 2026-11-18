@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useCartStore } from "../store/useCartStore";
 import { useOrderStore } from "../store/useOrderStore";
@@ -9,7 +9,6 @@ import { useCustomerQuote } from "../hooks/useCustomerQuote";
 import type { Order, PaymentMethod } from "../types";
 import PaymentMethods from "../components/PaymentMethods";
 import { ChevronLeft, PartyPopper } from "lucide-react";
-import Skeleton from "../components/Skeleton";
 import { buildOrderItemsPayload } from "../utils/buildOrderItemsPayload";
 import type { OrderItemPayload } from "../utils/buildOrderItemsPayload";
 import {
@@ -65,7 +64,6 @@ const PaymentPage: React.FC = () => {
   // exists: never resubmit, never mint a new key; send the diner to the
   // table's active orders instead.
   const [orderAlreadyRecorded, setOrderAlreadyRecorded] = useState(false);
-  const [loading, setLoading] = useState(true);
   // DR-11: pending price-change confirmation. Holds the submit-time cart
   // snapshot plus the matched backend mismatches. Never triggers a submit
   // on its own — only an explicit confirm does, and only while the live
@@ -98,11 +96,6 @@ const PaymentPage: React.FC = () => {
   // button disabled) from issuing two orders. Reset on failure so the
   // customer can retry after a genuine error.
   const submitAttemptedRef = useRef(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 300);
-    return () => clearTimeout(timer);
-  }, []);
 
   // Checked before the missing-checkout-data guard below: a successful
   // handlePayment() clears the cart and checkout snapshot as part of
@@ -438,20 +431,6 @@ const PaymentPage: React.FC = () => {
   const conflictStale =
     priceConflict !== null &&
     !isSnapshotCurrent(items, priceConflict.snapshot);
-
-  if (loading) {
-    return (
-      <div className="space-y-6 pb-20">
-        <div className="flex items-center gap-3">
-          <Skeleton width="2rem" height="2rem" borderRadius="50%" />
-          <Skeleton width="30%" height="2rem" borderRadius="0.5rem" />
-        </div>
-        <Skeleton width="100%" height="14rem" borderRadius="1.5rem" />
-        <Skeleton width="100%" height="12rem" borderRadius="1.5rem" />
-        <Skeleton width="100%" height="3rem" borderRadius="1rem" />
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6 pb-40 md:pb-20">

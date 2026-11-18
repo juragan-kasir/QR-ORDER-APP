@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useCartStore } from "../store/useCartStore";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Trash2, ShoppingBag } from "lucide-react";
 import CartSummary from "../components/CartSummary";
-import Skeleton from "../components/Skeleton";
 import BundleBadge from "../components/BundleBadge";
 import { useDialogA11y } from "../hooks/useDialogA11y";
 import { useStoreConfig } from "../hooks/useStoreConfig";
@@ -29,7 +28,6 @@ const CartPage: React.FC = () => {
     addRoundTarget.tableId === searchParams.get("table")
       ? addRoundTarget
       : null;
-  const [loading, setLoading] = useState(true);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const closeClearConfirm = () => setShowClearConfirm(false);
   const clearConfirmTitleId = React.useId();
@@ -43,10 +41,6 @@ const CartPage: React.FC = () => {
     return `${path}${sep}table=${searchParams.get("table") || ""}&store=${searchParams.get("store") || ""}&session=${searchParams.get("session") || ""}`;
   };
 
-  useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 500);
-    return () => clearTimeout(timer);
-  }, []);
 
   if (items.length === 0) {
     return (
@@ -66,30 +60,6 @@ const CartPage: React.FC = () => {
         >
           Mulai Pesan
         </button>
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="space-y-6 pb-20">
-        <Skeleton width="40%" height="2rem" borderRadius="0.75rem" />
-        <div className="space-y-4">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div
-              key={i}
-              className="bg-white dark:bg-gray-800 p-4 rounded-2xl flex items-center gap-4 border border-gray-50 dark:border-gray-700/50"
-            >
-              <Skeleton width="4rem" height="4rem" borderRadius="0.75rem" />
-              <div className="flex-1 space-y-2">
-                <Skeleton width="60%" height="1rem" borderRadius="0.5rem" />
-                <Skeleton width="40%" height="0.8rem" borderRadius="0.5rem" />
-              </div>
-              <Skeleton width="5rem" height="2rem" borderRadius="0.5rem" />
-            </div>
-          ))}
-        </div>
-        <Skeleton width="100%" height="12rem" borderRadius="1.5rem" />
       </div>
     );
   }
@@ -114,7 +84,7 @@ const CartPage: React.FC = () => {
             e.stopPropagation();
             closeClearConfirm();
           }}
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-6"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-6"
         >
           <div
             onClick={(e) => e.stopPropagation()}

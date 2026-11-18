@@ -335,11 +335,12 @@ describe("PaymentPage — 409 PRICE_CHANGED (DR-11)", () => {
     expect(mockedCreate.mock.calls[2][0].idempotencyKey).not.toBe(firstKey);
   });
 
-  test("shows a loading skeleton before the payment content", () => {
+  test("renders the payment content immediately (no fake loading skeleton)", () => {
+    // Keranjang & checkout sudah ada di store lokal: dulu skeleton 300 ms
+    // ditampilkan tanpa alasan (memperlambat LCP/INP). Konten harus langsung ada.
     seed();
     const { container } = renderPage();
-    expect(
-      container.querySelectorAll(".skeleton-shimmer").length,
-    ).toBeGreaterThan(0);
+    expect(container.querySelectorAll(".skeleton-shimmer").length).toBe(0);
+    expect(container.textContent?.length ?? 0).toBeGreaterThan(0);
   });
 });

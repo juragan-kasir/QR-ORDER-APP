@@ -58,7 +58,7 @@ const ProductQuickPreview: React.FC<ProductQuickPreviewProps> = ({
             e.stopPropagation();
             onClose();
           }}
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-6"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 p-0 sm:p-6"
         >
           <motion.div
             key="preview-panel"
@@ -92,7 +92,7 @@ const ProductQuickPreview: React.FC<ProductQuickPreviewProps> = ({
                 </span>
               )}
               {galleryImages.length > 1 && (
-                <span className="absolute bottom-3 right-3 bg-black/50 backdrop-blur-sm text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-sm">
+                <span className="absolute bottom-3 right-3 bg-black/60 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-sm">
                   {safeIndex + 1} / {galleryImages.length}
                 </span>
               )}
@@ -100,7 +100,7 @@ const ProductQuickPreview: React.FC<ProductQuickPreviewProps> = ({
                 type="button"
                 onClick={onClose}
                 aria-label="Tutup preview"
-                className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm flex items-center justify-center text-gray-700 dark:text-gray-200 shadow-sm hover:bg-white dark:hover:bg-gray-800 transition-colors"
+                className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white dark:bg-gray-800 flex items-center justify-center text-gray-700 dark:text-gray-200 shadow-sm hover:bg-white dark:hover:bg-gray-800 transition-colors"
               >
                 <X size={18} />
               </button>
