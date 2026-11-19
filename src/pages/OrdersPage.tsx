@@ -7,6 +7,7 @@ import Skeleton from "../components/Skeleton";
 import BundleBadge from "../components/BundleBadge";
 import { bareTableDesignator } from "../utils/tableDisplay";
 import { getDinerSession } from "../utils/dinerSession";
+import { orderListLabel } from "../utils/orderNumber";
 
 function statusBadgeClass(status: string) {
   if (status === "Ditolak" || status === "Dibatalkan")
@@ -223,7 +224,7 @@ const OrdersPage: React.FC = () => {
               <div>
                 <h3 className="font-bold text-gray-900 dark:text-gray-100">
                   Pesanan #
-                  {(order.orderNumber || order.id).slice(0, 10).toUpperCase()}
+                  {orderListLabel(order.orderNumber, order.id)}
                 </h3>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                   Meja {bareTableDesignator(order.tableNumber) ?? order.tableNumber}
